@@ -8,7 +8,7 @@ export default function DataAnalysisPage() {
       <p>Review experiment data, run analyses, and generate insights.</p>
 
       {/* Back to Experiment 1 Page Button (Bottom-left) */}
-      <div style={{ position: "absolute", bottom: "20px", left: "80px" }}>
+      <div style={{ position: "absolute", bottom: "20px", left: "20px" }}>
         <Link href="/experiments/experiment-1">
           <button style={{
             padding: "12px 20px",

@@ -35,7 +35,7 @@ export default function Experiment1Page() {
       </div>
 
       {/* Back to Experiments Button (Bottom-left) */}
-      <div style={{ position: "absolute", bottom: "20px", left: "80px" }}>
+      <div style={{ position: "absolute", bottom: "20px", left: "20px" }}>
         <Link href="/experiments">
           <button style={{
             padding: "12px 20px",
