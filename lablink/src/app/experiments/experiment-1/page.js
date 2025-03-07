@@ -15,9 +15,9 @@ export default function Experiment1Page() {
           </button>
         </Link>
 
-        <Link href="/experiments/experiment-1/training">
+        <Link href="/experiments/experiment-1/training-guidelines"> {/* Updated href */}
           <button style={{ margin: "10px", padding: "12px 20px", fontSize: "16px", cursor: "pointer" }}>
-            Training
+            Training/Guidelines {/* Updated label */}
           </button>
         </Link>
 
@@ -64,4 +64,3 @@ export default function Experiment1Page() {
     </main>
   );
 }
-
