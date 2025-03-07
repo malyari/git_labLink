@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -39,3 +40,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.env*.local
+
+
+# Ignore environment variables
+.env.local
+
+# Ignore Google credentials
+config/service-account.json
+
+# Ignore build files & dependencies
+node_modules/
+.next/
+out/
