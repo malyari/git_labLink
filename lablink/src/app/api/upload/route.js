@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { uploadFile } from "@/lib/googleCloud";
+import { uploadFile } from "../../lib/googleCloud";
 
 export async function POST(req) {
   try {
