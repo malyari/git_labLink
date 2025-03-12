@@ -25,6 +25,13 @@ export default function CalendarPage() {
   // Function to add a new event when clicking on a day
   const handleDateClick = (info) => {
     const eventType = prompt("Is this a booking for 'Equipment' or 'Experiment'?");
+
+    // ✅ Handle if the user clicks "Cancel" (prompt returns null)
+    if (eventType === null) {
+      return; // Simply exit the function without showing an alert
+    }
+
+    // ✅ Check if input is empty or invalid
     if (!eventType || (eventType.toLowerCase() !== "equipment" && eventType.toLowerCase() !== "experiment")) {
       alert("Invalid selection! Please enter 'Equipment' or 'Experiment'.");
       return;
@@ -35,6 +42,12 @@ export default function CalendarPage() {
 
     const startDate = info.dateStr; // Default to clicked date
     const endDateInput = prompt("Enter End Date (YYYY-MM-DD) or leave blank for one day:", startDate);
+
+    // ✅ Handle if user cancels the end date input
+    if (endDateInput === null) {
+      return; // Exit function if cancelled
+    }
+
     const endDate = fixEndDate(endDateInput || startDate); // Fix end date issue
 
     const newEvent = {
@@ -50,6 +63,7 @@ export default function CalendarPage() {
 
     setEvents([...events, newEvent]);
   };
+
 
   // Function to modify an existing event
   const handleEventClick = (clickInfo) => {
