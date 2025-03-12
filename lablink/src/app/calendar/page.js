@@ -123,8 +123,8 @@ export default function CalendarPage() {
 
       {/* Main Content Area */}
       <div style={{ flex: 1, textAlign: "center" }}>
-        <h1>📅 Calendar Page</h1>
-        <p>Manage your experiments and equipment schedule here!</p>
+        {/* <h1>📅 Calendar Page</h1>
+        <p>Manage your experiments and equipment schedule here!</p> */}
 
         {/* Calendar */}
         <div style={{ maxWidth: "900px", margin: "auto" }}>
