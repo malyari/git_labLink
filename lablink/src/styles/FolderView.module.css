@@ -1,0 +1,12 @@
+/* FolderView.module.css */
+.folderContainer {
+  display: flex;           /* Arrange columns side-by-side */
+  gap: 1rem;               /* Space between columns */
+  overflow-x: auto;        /* Horizontal scroll if columns exceed screen width */
+}
+
+.column {
+  min-width: 200px;        /* Minimum width for each column */
+  border: 1px solid #ddd;  /* Optional: border for visual separation */
+  padding: 0.5rem;         /* Internal padding */
+}
