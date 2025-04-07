@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Home, Camera, Folder } from "lucide-react";
 import Image from "next/image";
@@ -23,23 +23,82 @@ export default function EquipmentSetupPage() {
     setCurrentFolder(folder);
   };
 
-  // Ensure images are uploaded to the selected folder
-  const handleImageUpload = (event) => {
+  // NEW: Function to convert a file to a base64 string
+  const toBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64Data = reader.result.split(",")[1]; // remove data URL prefix
+        resolve(base64Data);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+
+  // Modified handleImageUpload: Update local state AND upload to Google Drive
+  const handleImageUpload = async (event) => {
     const files = Array.from(event.target.files);
     const imageUrls = files.map((file) => URL.createObjectURL(file));
 
+    // Update local preview state for the current folder
     setImages((prevImages) => ({
       ...prevImages,
-      [currentFolder]: [...(prevImages[currentFolder] || []), ...imageUrls], // Store in selected folder
+      [currentFolder]: [...(prevImages[currentFolder] || []), ...imageUrls],
     }));
+
+    // For each file, convert to base64 and upload to Google Drive
+    for (const file of files) {
+      try {
+        const base64Data = await toBase64(file);
+        const payload = {
+          fileName: file.name,
+          fileContent: base64Data,
+          mimeType: file.type,
+          folder: currentFolder, // Uses the currently selected folder ("Equipment", etc.)
+        };
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        console.log("Uploaded file data:", data);
+      } catch (error) {
+        console.error("Error uploading file to Google Drive:", error);
+      }
+    }
   };
+
+  // NEW: Fetch persisted images from Google Drive when the current folder is "Equipment"
+  useEffect(() => {
+    if (currentFolder === "Equipment") {
+      fetch("/api/listEquipment")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.files) {
+            // Create image URLs from file IDs (publicly accessible because permissions were set)
+            const persistedImages = data.files.map(
+              (file) => `https://drive.google.com/uc?export=view&id=${file.id}`
+            );
+            setImages((prevImages) => ({
+              ...prevImages,
+              Equipment: persistedImages,
+            }));
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching persisted images:", error);
+        });
+    }
+  }, [currentFolder]);
 
   // Open file selector when clicking the camera button
   const openFileSelector = () => {
     fileInputRef.current.click();
   };
 
-  // Handle right-click to delete an image from the selected folder
+  // Handle right-click to delete an image from the selected folder (local preview only)
   const handleDeleteImage = (event, index) => {
     event.preventDefault();
     const confirmDelete = window.confirm("Are you sure you want to delete this photo?");
@@ -52,7 +111,14 @@ export default function EquipmentSetupPage() {
   };
 
   return (
-    <main style={{ textAlign: "center", padding: "20px", position: "relative", height: "100vh" }}>
+    <main
+      style={{
+        textAlign: "center",
+        padding: "20px",
+        position: "relative",
+        height: "100vh",
+      }}
+    >
       <h1>🔧 Set-Up & Equipment</h1>
       <p>Manage your experimental setup and materials.</p>
 
@@ -89,7 +155,11 @@ export default function EquipmentSetupPage() {
               }}
               onClick={() => handleFolderClick(folder)}
             >
-              <Folder size={20} style={{ marginRight: "10px", fill: "darkorange", color: "darkorange" }} /> {folder} 
+              <Folder
+                size={20}
+                style={{ marginRight: "10px", fill: "darkorange", color: "darkorange" }}
+              />{" "}
+              {folder}
             </li>
           ))}
         </ul>
@@ -143,10 +213,21 @@ export default function EquipmentSetupPage() {
           {images[currentFolder].map((src, index) => (
             <div
               key={index}
-              style={{ position: "relative", width: "100px", height: "100px", cursor: "pointer" }}
+              style={{
+                position: "relative",
+                width: "100px",
+                height: "100px",
+                cursor: "pointer",
+              }}
               onContextMenu={(event) => handleDeleteImage(event, index)}
             >
-              <Image src={src} alt={`Uploaded ${index}`} width={100} height={100} style={{ borderRadius: "8px" }} />
+              <Image
+                src={src}
+                alt={`Uploaded ${index}`}
+                width={100}
+                height={100}
+                style={{ borderRadius: "8px" }}
+              />
             </div>
           ))}
         </div>
