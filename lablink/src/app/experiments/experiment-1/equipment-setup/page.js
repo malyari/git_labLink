@@ -6,11 +6,12 @@ import { Home, Camera, Folder } from "lucide-react";
 import Image from "next/image";
 
 export default function EquipmentSetupPage() {
+  // For Equipment, images will be objects { id, url } if uploaded to Google Drive.
   const [images, setImages] = useState({
     Equipment: [],
     Samples: [],
     "Set-Up": [],
-  }); // Store images per folder
+  });
 
   const [currentFolder, setCurrentFolder] = useState("Equipment"); // Default folder
   const fileInputRef = useRef(null);
@@ -23,7 +24,7 @@ export default function EquipmentSetupPage() {
     setCurrentFolder(folder);
   };
 
-  // NEW: Function to convert a file to a base64 string
+  // Convert a file to a base64 string
   const toBase64 = (file) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -35,18 +36,52 @@ export default function EquipmentSetupPage() {
       reader.onerror = (error) => reject(error);
     });
 
-  // Modified handleImageUpload: Update local state AND upload to Google Drive
+  // Fetch persisted images for the Equipment folder from Google Drive
+  const fetchPersistedImages = async () => {
+    try {
+      const res = await fetch("/api/listEquipment");
+      const data = await res.json();
+      if (data.files) {
+        // Map each file object to an object with id and URL
+        const persistedImages = data.files.map((file) => ({
+          id: file.id,
+          url: `https://drive.google.com/uc?export=view&id=${file.id}`,
+        }));
+        setImages((prevImages) => ({
+          ...prevImages,
+          Equipment: persistedImages,
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching persisted images:", error);
+    }
+  };
+
+  // Load persisted images when current folder is Equipment
+  useEffect(() => {
+    if (currentFolder === "Equipment") {
+      fetchPersistedImages();
+    }
+  }, [currentFolder]);
+
+  // Modified handleImageUpload: update local preview and upload to Google Drive
   const handleImageUpload = async (event) => {
     const files = Array.from(event.target.files);
-    const imageUrls = files.map((file) => URL.createObjectURL(file));
+    // For immediate preview (using local object URLs)
+    const localPreviews = files.map((file) => URL.createObjectURL(file));
 
-    // Update local preview state for the current folder
-    setImages((prevImages) => ({
-      ...prevImages,
-      [currentFolder]: [...(prevImages[currentFolder] || []), ...imageUrls],
-    }));
+    // Update local state for non-persisted preview (if folder is not Equipment, or as a temporary preview)
+    if (currentFolder !== "Equipment") {
+      setImages((prevImages) => ({
+        ...prevImages,
+        [currentFolder]: [
+          ...(prevImages[currentFolder] || []),
+          ...localPreviews,
+        ],
+      }));
+    }
 
-    // For each file, convert to base64 and upload to Google Drive
+    // Upload each file to Google Drive
     for (const file of files) {
       try {
         const base64Data = await toBase64(file);
@@ -54,7 +89,7 @@ export default function EquipmentSetupPage() {
           fileName: file.name,
           fileContent: base64Data,
           mimeType: file.type,
-          folder: currentFolder, // Uses the currently selected folder ("Equipment", etc.)
+          folder: currentFolder, // Tells API which folder to use
         };
 
         const res = await fetch("/api/upload", {
@@ -68,46 +103,45 @@ export default function EquipmentSetupPage() {
         console.error("Error uploading file to Google Drive:", error);
       }
     }
+    // After upload, if in Equipment folder, re-fetch the persisted images to update state with file IDs.
+    if (currentFolder === "Equipment") {
+      fetchPersistedImages();
+    }
   };
 
-  // NEW: Fetch persisted images from Google Drive when the current folder is "Equipment"
-  useEffect(() => {
-    if (currentFolder === "Equipment") {
-      fetch("/api/listEquipment")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.files) {
-            // Create image URLs from file IDs (publicly accessible because permissions were set)
-            const persistedImages = data.files.map(
-              (file) => `https://drive.google.com/uc?export=view&id=${file.id}`
-            );
-            setImages((prevImages) => ({
-              ...prevImages,
-              Equipment: persistedImages,
-            }));
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching persisted images:", error);
-        });
+  // Delete image both from state and from Google Drive if it has an id
+  const handleDeleteImage = async (event, image, index) => {
+    event.preventDefault();
+    const confirmDelete = window.confirm("Are you sure you want to delete this photo?");
+    if (confirmDelete) {
+      // If current folder is Equipment and the image has an id, delete it from Google Drive
+      if (currentFolder === "Equipment" && image.id) {
+        try {
+          const res = await fetch("/api/deleteFile", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileId: image.id }),
+          });
+          const data = await res.json();
+          console.log("Deletion response:", data);
+          // Re-fetch images after deletion
+          fetchPersistedImages();
+        } catch (error) {
+          console.error("Error deleting file from Google Drive:", error);
+        }
+      } else {
+        // Otherwise, just remove from local state
+        setImages((prevImages) => ({
+          ...prevImages,
+          [currentFolder]: prevImages[currentFolder].filter((_, i) => i !== index),
+        }));
+      }
     }
-  }, [currentFolder]);
+  };
 
   // Open file selector when clicking the camera button
   const openFileSelector = () => {
     fileInputRef.current.click();
-  };
-
-  // Handle right-click to delete an image from the selected folder (local preview only)
-  const handleDeleteImage = (event, index) => {
-    event.preventDefault();
-    const confirmDelete = window.confirm("Are you sure you want to delete this photo?");
-    if (confirmDelete) {
-      setImages((prevImages) => ({
-        ...prevImages,
-        [currentFolder]: prevImages[currentFolder].filter((_, i) => i !== index),
-      }));
-    }
   };
 
   return (
@@ -200,7 +234,7 @@ export default function EquipmentSetupPage() {
         style={{ display: "none" }}
       />
 
-      {/* Image Preview Section - Only show images for the selected folder */}
+      {/* Image Preview Section */}
       {images[currentFolder]?.length > 0 && (
         <div
           style={{
@@ -210,26 +244,30 @@ export default function EquipmentSetupPage() {
             gap: "10px",
           }}
         >
-          {images[currentFolder].map((src, index) => (
-            <div
-              key={index}
-              style={{
-                position: "relative",
-                width: "100px",
-                height: "100px",
-                cursor: "pointer",
-              }}
-              onContextMenu={(event) => handleDeleteImage(event, index)}
-            >
-              <Image
-                src={src}
-                alt={`Uploaded ${index}`}
-                width={100}
-                height={100}
-                style={{ borderRadius: "8px" }}
-              />
-            </div>
-          ))}
+          {images[currentFolder].map((img, index) => {
+            // For Equipment, img is an object with { id, url }.
+            const src = img.url || img;
+            return (
+              <div
+                key={index}
+                style={{
+                  position: "relative",
+                  width: "100px",
+                  height: "100px",
+                  cursor: "pointer",
+                }}
+                onContextMenu={(event) => handleDeleteImage(event, img, index)}
+              >
+                <Image
+                  src={src}
+                  alt={`Uploaded ${index}`}
+                  width={100}
+                  height={100}
+                  style={{ borderRadius: "8px" }}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
 
