@@ -671,7 +671,8 @@ export default function EquipmentSetupPage() {
                       alignItems: "center",
                       gap: "5px",
                       cursor: "pointer",
-                      borderBottom: "1px solid #eee"
+                      borderBottom: "1px solid #eee",
+                      color: "#333"
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -688,7 +689,8 @@ export default function EquipmentSetupPage() {
                       alignItems: "center",
                       gap: "5px",
                       cursor: "pointer",
-                      borderBottom: "1px solid #eee"
+                      borderBottom: "1px solid #eee",
+                      color: "#333"
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -705,7 +707,8 @@ export default function EquipmentSetupPage() {
                       alignItems: "center",
                       gap: "5px",
                       cursor: "pointer",
-                      borderBottom: "1px solid #eee"
+                      borderBottom: "1px solid #eee",
+                      color: "#333"
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
