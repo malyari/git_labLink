@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ArrowLeft } from "lucide-react";
+import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ChevronLeft } from "lucide-react";
 import Image from "next/image";
 
 export default function EquipmentSetupPage() {
@@ -710,7 +710,7 @@ export default function EquipmentSetupPage() {
       <div style={{ 
         position: "absolute", 
         bottom: "20px", 
-        left: "40px"
+        left: "20px"
       }}>
         <Link href="/experiments/experiment-1">
           <button style={{ 
@@ -723,7 +723,7 @@ export default function EquipmentSetupPage() {
             alignItems: "center",
             gap: "8px"
           }}>
-            <ArrowLeft size={18} />
+            <ChevronLeft size={20} />
             Experiment 1
           </button>
         </Link>
@@ -732,7 +732,7 @@ export default function EquipmentSetupPage() {
       <div style={{ 
         position: "absolute", 
         bottom: "20px", 
-        right: "40px" 
+        right: "20px" 
       }}>
         <Link href="/">
           <button
