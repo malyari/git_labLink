@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check } from "lucide-react";
+import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu } from "lucide-react";
 import Image from "next/image";
 
 export default function EquipmentSetupPage() {
@@ -18,8 +18,32 @@ export default function EquipmentSetupPage() {
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, item: null, key: "" });
   const [clipboard, setClipboard] = useState({ action: "", folder: "", key: "", item: null });
   const [renaming, setRenaming] = useState({ active: false, key: "", value: "" });
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef(null);
   const renameInputRef = useRef(null);
+
+  // Detect mobile devices
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      // Auto-hide sidebar on mobile
+      if (window.innerWidth < 768) {
+        setSidebarVisible(false);
+      } else {
+        setSidebarVisible(true);
+      }
+    };
+    
+    // Check on initial load
+    checkMobile();
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Render the sidebar with folder options
   const renderSidebar = () => {
@@ -38,7 +62,13 @@ export default function EquipmentSetupPage() {
               alignItems: "center",
               borderLeft: currentFolder === folderName ? "3px solid #007bff" : "3px solid transparent",
             }}
-            onClick={() => setCurrentFolder(folderName)}
+            onClick={() => {
+              setCurrentFolder(folderName);
+              // On mobile, hide sidebar after selection
+              if (isMobile) {
+                setSidebarVisible(false);
+              }
+            }}
           >
             <Folder
               size={20}
@@ -445,7 +475,7 @@ export default function EquipmentSetupPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
           gap: "15px",
           padding: "15px",
           position: "relative"
@@ -550,7 +580,7 @@ export default function EquipmentSetupPage() {
     <main
       style={{
         textAlign: "center",
-        padding: "20px",
+        padding: "10px",
         position: "relative",
         height: "100vh",
       }}
@@ -561,30 +591,68 @@ export default function EquipmentSetupPage() {
       <div style={{ 
         display: "flex", 
         height: "70vh", 
-        margin: "20px auto",
+        margin: "10px auto",
         border: "2px solid #ccc",
         borderRadius: "8px",
         overflow: "hidden",
         background: "#f9f9f9",
-        maxWidth: "90%"
+        maxWidth: "100%",
+        position: "relative"
       }}>
-        {/* Folder navigation sidebar */}
+        {/* Mobile toggle menu button */}
+        {isMobile && (
+          <button
+            onClick={() => setSidebarVisible(!sidebarVisible)}
+            style={{
+              position: "absolute",
+              top: "10px",
+              left: "10px",
+              zIndex: 100,
+              background: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              width: "36px",
+              height: "36px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer"
+            }}
+          >
+            <Menu size={20} />
+          </button>
+        )}
+        
+        {/* Folder navigation sidebar - conditionally shown on mobile */}
         <div style={{ 
-          width: "250px", 
+          width: isMobile ? (sidebarVisible ? "80%" : "0") : "220px",
           borderRight: "1px solid #ddd",
           overflowY: "auto",
-          background: "#f0f0f0"
+          background: "#f0f0f0",
+          transition: "width 0.3s ease",
+          position: isMobile ? "absolute" : "relative",
+          height: "100%",
+          zIndex: isMobile ? "50" : "1",
+          boxShadow: isMobile && sidebarVisible ? "2px 0 5px rgba(0,0,0,0.2)" : "none"
         }}>
-          <h3 style={{ padding: "15px 15px 5px", color: "#333", margin: 0 }}>📁 Folders</h3>
-          {renderSidebar()}
+          {(sidebarVisible || !isMobile) && (
+            <>
+              <h3 style={{ padding: "15px 15px 5px", color: "#333", margin: 0 }}>📁 Folders</h3>
+              {renderSidebar()}
+            </>
+          )}
         </div>
         
-        {/* Content area */}
+        {/* Content area - full width on mobile when sidebar is hidden */}
         <div style={{ 
           flex: 1, 
           overflowY: "auto",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          marginLeft: isMobile && sidebarVisible ? "80%" : 0,
+          transition: "margin-left 0.3s ease",
+          width: isMobile && sidebarVisible ? "100%" : "auto"
         }}>
           <h3 style={{ 
             padding: "15px", 
@@ -592,7 +660,8 @@ export default function EquipmentSetupPage() {
             borderBottom: "1px solid #ddd",
             color: "#333",
             display: "flex",
-            alignItems: "center"
+            alignItems: "center",
+            paddingLeft: isMobile ? "45px" : "15px" // Make room for the menu button
           }}>
             <Folder size={20} style={{ marginRight: "10px", color: "darkorange" }} />
             {currentFolder}
@@ -608,7 +677,7 @@ export default function EquipmentSetupPage() {
         onClick={openFileSelector}
         style={{
           position: "absolute",
-          bottom: "20px",
+          bottom: isMobile ? "15px" : "20px",
           left: "50%",
           transform: "translateX(-50%)",
           border: "none",
@@ -620,12 +689,12 @@ export default function EquipmentSetupPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: "60px",
-          height: "60px",
+          width: "56px",
+          height: "56px",
           boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
         }}
       >
-        <Camera size={30} />
+        <Camera size={28} />
       </button>
 
       <input
@@ -637,26 +706,46 @@ export default function EquipmentSetupPage() {
         style={{ display: "none" }}
       />
 
-      <div style={{ position: "absolute", bottom: "20px", left: "20px" }}>
+      {/* Only show navigation buttons if not in mobile view or conditionally */}
+      <div style={{ 
+        position: "absolute", 
+        bottom: "15px", 
+        left: "15px",
+        display: isMobile ? "none" : "block" // Hide on mobile to save space
+      }}>
         <Link href="/experiments/experiment-1">
-          <button style={{ padding: "12px 20px", fontSize: "16px", cursor: "pointer" }}>
+          <button style={{ 
+            padding: "12px 20px", 
+            fontSize: "16px", 
+            cursor: "pointer",
+            background: "transparent",
+            border: "none"
+          }}>
             Back to Experiment 1
           </button>
         </Link>
       </div>
 
-      <div style={{ position: "absolute", bottom: "20px", right: "20px" }}>
+      <div style={{ 
+        position: "absolute", 
+        bottom: "15px", 
+        right: "15px" 
+      }}>
         <Link href="/">
           <button
             style={{
               border: "none",
-              background: "transparent",
+              background: isMobile ? "#f0f0f0" : "transparent",
+              borderRadius: isMobile ? "4px" : "0",
               cursor: "pointer",
               fontSize: "24px",
-              padding: "10px",
+              padding: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
             }}
           >
-            <Home size={32} />
+            <Home size={28} />
           </button>
         </Link>
       </div>
