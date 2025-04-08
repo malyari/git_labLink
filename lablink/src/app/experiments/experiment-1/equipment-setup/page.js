@@ -710,7 +710,7 @@ export default function EquipmentSetupPage() {
       <div style={{ 
         position: "absolute", 
         bottom: "20px", 
-        left: "20px"
+        left: "10px"
       }}>
         <Link href="/experiments/experiment-1">
           <button style={{ 
@@ -732,7 +732,7 @@ export default function EquipmentSetupPage() {
       <div style={{ 
         position: "absolute", 
         bottom: "20px", 
-        right: "20px" 
+        right: "10px" 
       }}>
         <Link href="/">
           <button
