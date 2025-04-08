@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu } from "lucide-react";
+import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 
 export default function EquipmentSetupPage() {
@@ -709,8 +709,8 @@ export default function EquipmentSetupPage() {
       {/* Only show navigation buttons if not in mobile view or conditionally */}
       <div style={{ 
         position: "absolute", 
-        bottom: "15px", 
-        left: "15px"
+        bottom: "20px", 
+        left: "40px"
       }}>
         <Link href="/experiments/experiment-1">
           <button style={{ 
@@ -718,9 +718,13 @@ export default function EquipmentSetupPage() {
             fontSize: "16px", 
             cursor: "pointer",
             background: "transparent",
-            border: "none"
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
           }}>
-            Back to Experiment 1
+            <ArrowLeft size={18} />
+            Experiment 1
           </button>
         </Link>
       </div>
@@ -728,7 +732,7 @@ export default function EquipmentSetupPage() {
       <div style={{ 
         position: "absolute", 
         bottom: "20px", 
-        right: "20px" 
+        right: "40px" 
       }}>
         <Link href="/">
           <button
