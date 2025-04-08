@@ -103,7 +103,8 @@ export default function EquipmentSetupPage() {
       if (data.files) {
         const persistedImages = {};
         data.files.forEach((file) => {
-          persistedImages[file.name || `image_${file.id}.jpeg`] = {
+          // Use the file ID as the key instead of the file name
+          persistedImages[file.id] = {
             url: `https://drive.google.com/uc?export=view&id=${file.id}`,
             id: file.id,
             originalName: file.name || `image_${file.id}.jpeg`
@@ -162,12 +163,16 @@ export default function EquipmentSetupPage() {
         const url = URL.createObjectURL(file);
         const fileName = file.name;
         
+        // Generate a unique temporary key for the file
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
         setFolderStructure((prevStructure) => {
           const updated = { ...prevStructure };
-          updated.Folders[currentFolder][fileName] = { 
+          updated.Folders[currentFolder][tempId] = { 
             url, 
             originalName: fileName,
-            isLocal: true 
+            isLocal: true,
+            tempId: tempId // Store the temp ID for later reference
           };
           return updated;
         });
@@ -189,7 +194,16 @@ export default function EquipmentSetupPage() {
         const data = await res.json();
         console.log("Uploaded file data:", data);
         
+        // Remove the temporary item once we've refreshed from the server
         if (currentFolder === "Equipment") {
+          // Remove the temp item first to avoid duplicates
+          setFolderStructure((prevStructure) => {
+            const updated = { ...prevStructure };
+            delete updated.Folders[currentFolder][tempId];
+            return updated;
+          });
+          
+          // Then fetch the updated list from the server
           fetchPersistedImages();
         }
       } catch (error) {
@@ -197,6 +211,7 @@ export default function EquipmentSetupPage() {
       }
     }
   };
+
 
   const handleDeleteImage = async (image, key) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this photo?");
