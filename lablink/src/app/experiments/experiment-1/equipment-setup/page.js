@@ -661,7 +661,7 @@ export default function EquipmentSetupPage() {
             color: "#333",
             display: "flex",
             alignItems: "center",
-            paddingLeft: isMobile ? "45px" : "15px" // Make room for the menu button
+            paddingLeft: isMobile ? "60px" : "15px" // Make room for the menu button
           }}>
             <Folder size={20} style={{ marginRight: "10px", color: "darkorange" }} />
             {currentFolder}
