@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ChevronLeft } from "lucide-react";
+import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ChevronLeft, MoreVertical } from "lucide-react";
 import Image from "next/image";
 
 export default function EquipmentSetupPage() {
@@ -20,6 +20,8 @@ export default function EquipmentSetupPage() {
   const [renaming, setRenaming] = useState({ active: false, key: "", value: "" });
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [touchTimer, setTouchTimer] = useState(null);
+  const [showItemActions, setShowItemActions] = useState(null); // Tracks which item shows mobile actions
   const fileInputRef = useRef(null);
   const renameInputRef = useRef(null);
 
@@ -127,21 +129,29 @@ export default function EquipmentSetupPage() {
     }
   }, [currentFolder]);
 
+
   useEffect(() => {
-    // Close context menu when clicking outside
-    const handleClickOutside = () => {
+    // Close context menu and mobile actions when clicking outside
+    const handleClickOutside = (e) => {
       if (contextMenu.show) {
         setContextMenu({ show: false, x: 0, y: 0, item: null, key: "" });
       }
+      
+      // Only close the mobile actions if we clicked outside the item
+      if (showItemActions) {
+        // Check if the click was inside an item with the mobile-menu-container class
+        const clickedOnMenu = e.target.closest('.mobile-menu-container');
+        if (!clickedOnMenu) {
+          setShowItemActions(null);
+        }
+      }
     };
     
-    // Close rename input when clicking outside and not on the confirm button
+    // Close rename input when clicking outside and confirm the rename
     const handleClickOutsideRename = (e) => {
       if (renaming.active && renameInputRef.current && !renameInputRef.current.contains(e.target)) {
-        const isConfirmButton = e.target.closest('[data-confirm-rename="true"]');
-        if (!isConfirmButton) {
-          setRenaming({ active: false, key: "", value: "" });
-        }
+        // Confirm the rename when clicking outside
+        handleRenameConfirm();
       }
     };
 
@@ -152,7 +162,39 @@ export default function EquipmentSetupPage() {
       window.removeEventListener("click", handleClickOutside);
       window.removeEventListener("click", handleClickOutsideRename);
     };
-  }, [contextMenu.show, renaming.active]);
+  }, [contextMenu.show, renaming.active, showItemActions]);
+
+  // Make sure to clear timers when unmounting
+  useEffect(() => {
+    return () => {
+      if (touchTimer) clearTimeout(touchTimer);
+    };
+  }, [touchTimer]);
+
+  const renderNameField = (key, image) => {
+    if (renaming.active && renaming.key === key) {
+      return (
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renaming.value}
+            onChange={(e) => setRenaming({...renaming, value: e.target.value})}
+            onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
+            onBlur={() => handleRenameConfirm()}
+            style={{ 
+              width: "100%",
+              padding: "4px",
+              border: "1px solid #007bff",
+              borderRadius: "4px"
+            }}
+          />
+        </div>
+      );
+    } else {
+      return image.originalName || key.replace(/^(local_|image_)/, '').replace(/\.[^/.]+$/, '');
+    }
+  };
 
   const handleImageUpload = async (event) => {
     const files = Array.from(event.target.files);
@@ -400,6 +442,48 @@ export default function EquipmentSetupPage() {
     });
   };
 
+  // Handle touch start events for long-press detection
+  const handleTouchStart = (e, item, key) => {
+    // Clear any existing touch timer
+    if (touchTimer) clearTimeout(touchTimer);
+    
+    // Start a new timer for long press
+    const timer = setTimeout(() => {
+      // Calculate position for context menu
+      const touch = e.touches[0];
+      const rect = e.currentTarget.getBoundingClientRect();
+      
+      // Position the menu near the touch point but ensure it's within view
+      setContextMenu({
+        show: true,
+        x: Math.min(touch.clientX, window.innerWidth - 150), // Prevent menu from going off-screen
+        y: Math.min(touch.clientY, window.innerHeight - 200),
+        item: item,
+        key: key
+      });
+    }, 500); // 500ms long press
+    
+    setTouchTimer(timer);
+  };
+
+  // Handle touch end events
+  const handleTouchEnd = () => {
+    // Clear the timer if touch ends before the long press threshold
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      setTouchTimer(null);
+    }
+  };
+
+  // Toggle mobile action buttons
+  const toggleItemActions = (key) => {
+    if (showItemActions === key) {
+      setShowItemActions(null);
+    } else {
+      setShowItemActions(key);
+    }
+  };
+
   // Render context menu
   const renderContextMenu = () => {
     if (!contextMenu.show) return null;
@@ -531,6 +615,9 @@ export default function EquipmentSetupPage() {
               background: "#fff",
             }}
             onContextMenu={(e) => handleContextMenu(e, image, key)}
+            onTouchStart={(e) => handleTouchStart(e, image, key)}
+            onTouchEnd={handleTouchEnd}
+            className="mobile-menu-container"
           >
             <div style={{ height: "120px", position: "relative", cursor: "pointer" }}>
               <Image
@@ -539,6 +626,114 @@ export default function EquipmentSetupPage() {
                 fill
                 style={{ objectFit: "cover" }}
               />
+              
+              {/* Mobile action button */}
+              {isMobile && (
+                <div 
+                  style={{
+                    position: "absolute",
+                    top: "5px",
+                    right: "5px",
+                    background: "rgba(255,255,255,0.7)",
+                    borderRadius: "50%",
+                    width: "30px",
+                    height: "30px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 5
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleItemActions(key);
+                  }}
+                >
+                  <MoreVertical size={18} color="#333" />
+                </div>
+              )}
+              
+              {/* Mobile action buttons that appear when menu button is clicked */}
+              {isMobile && showItemActions === key && (
+                <div style={{
+                  position: "absolute",
+                  top: "5px",
+                  right: "40px",
+                  background: "white",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                  zIndex: 10,
+                  padding: "5px"
+                }}>
+                  <div 
+                    style={{
+                      padding: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee"
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRenameStart(key, image.originalName);
+                      setShowItemActions(null);
+                    }}
+                  >
+                    <Edit size={16} /> Rename
+                  </div>
+                  <div 
+                    style={{
+                      padding: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee"
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyImage(key, image);
+                      setShowItemActions(null);
+                    }}
+                  >
+                    <Copy size={16} /> Copy
+                  </div>
+                  <div 
+                    style={{
+                      padding: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee"
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCutImage(key, image);
+                      setShowItemActions(null);
+                    }}
+                  >
+                    <Scissors size={16} /> Cut
+                  </div>
+                  <div 
+                    style={{
+                      padding: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      cursor: "pointer",
+                      color: "red"
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteImage(image, key);
+                      setShowItemActions(null);
+                    }}
+                  >
+                    <Trash size={16} /> Delete
+                  </div>
+                </div>
+              )}
             </div>
             <div style={{ 
               padding: "8px", 
@@ -549,41 +744,7 @@ export default function EquipmentSetupPage() {
               color: "#333",
               position: "relative"
             }}>
-              {renaming.active && renaming.key === key ? (
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <input
-                    ref={renameInputRef}
-                    type="text"
-                    value={renaming.value}
-                    onChange={(e) => setRenaming({...renaming, value: e.target.value})}
-                    onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
-                    style={{ 
-                      width: "calc(100% - 35px)",
-                      padding: "4px",
-                      border: "1px solid #007bff",
-                      borderRadius: "4px"
-                    }}
-                  />
-                  <button 
-                    data-confirm-rename="true"
-                    onClick={handleRenameConfirm}
-                    style={{ 
-                      marginLeft: "5px", 
-                      cursor: "pointer",
-                      border: "none",
-                      background: "#007bff",
-                      color: "white",
-                      borderRadius: "4px", 
-                      display: "flex",
-                      padding: "4px"
-                    }}
-                  >
-                    <Check size={14} />
-                  </button>
-                </div>
-              ) : (
-                image.originalName || key.replace(/^(local_|image_)/, '').replace(/\.[^/.]+$/, '')
-              )}
+              {renderNameField(key, image)}
             </div>
           </div>
         ))}
