@@ -710,8 +710,7 @@ export default function EquipmentSetupPage() {
       <div style={{ 
         position: "absolute", 
         bottom: "15px", 
-        left: "15px",
-        display: isMobile ? "none" : "block" // Hide on mobile to save space
+        left: "15px"
       }}>
         <Link href="/experiments/experiment-1">
           <button style={{ 
@@ -728,24 +727,20 @@ export default function EquipmentSetupPage() {
 
       <div style={{ 
         position: "absolute", 
-        bottom: "15px", 
-        right: "15px" 
+        bottom: "20px", 
+        right: "20px" 
       }}>
         <Link href="/">
           <button
             style={{
               border: "none",
-              background: isMobile ? "#f0f0f0" : "transparent",
-              borderRadius: isMobile ? "4px" : "0",
+              background: "transparent",
               cursor: "pointer",
               fontSize: "24px",
-              padding: "8px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
+              padding: "10px",
             }}
           >
-            <Home size={28} />
+            <Home size={32} />
           </button>
         </Link>
       </div>
