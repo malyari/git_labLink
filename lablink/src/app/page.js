@@ -1,13 +1,17 @@
 "use client"; // Ensures this runs on the client side in Next.js
 
 import Link from "next/link";
-import { FlaskConical, Calendar, Settings, MessageSquare, Send, X } from "lucide-react";
+import { FlaskConical, Calendar, Settings, MessageSquare, Send, X, User } from "lucide-react";
 import { useState } from "react";
 
 export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
@@ -23,6 +27,19 @@ export default function Home() {
     setNewMessage("");
   };
 
+  const handleLogin = (e) => {
+    e.preventDefault();
+    // In a real app, you would validate credentials here
+    if (username && password) {
+      setIsLoggedIn(true);
+      setShowLoginModal(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
   return (
     <main style={{ 
       textAlign: "center", 
@@ -34,6 +51,109 @@ export default function Home() {
       <h1>🚀 Welcome to LabLink 🧪</h1>
       {/* <h1>🚀 Hello, Scientists! 🧪</h1> */}
       {/* <p>Welcome to the app that makes your life easier!</p> */}
+
+      {/* Login/User Profile Button (Top Right) */}
+      <div style={{ position: "fixed", top: "20px", right: "70px", zIndex: 1100 }}>
+        <button
+          onClick={() => isLoggedIn ? handleLogout() : setShowLoginModal(true)}
+          style={{
+            background: isLoggedIn ? "#28a745" : "#6c757d",
+            color: "white",
+            border: "none",
+            padding: "12px",
+            borderRadius: "50%",
+            cursor: "pointer",
+          }}
+        >
+          <User size={24} />
+        </button>
+        {isLoggedIn && (
+          <div style={{
+            position: "absolute",
+            top: "60px",
+            right: "0",
+            background: "white",
+            border: "1px solid #000",
+            borderRadius: "4px",
+            padding: "5px 10px",
+            fontSize: "12px",
+            whiteSpace: "nowrap",
+            color: "#000",
+            fontWeight: "bold",
+          }}>
+            {username}
+          </div>
+        )}
+      </div>
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 1200,
+        }}>
+          <div style={{
+            background: "white",
+            padding: "20px",
+            borderRadius: "8px",
+            width: "300px",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+              <h2 style={{ margin: 0, color: "black" }}>Login</h2>
+              <button 
+                onClick={() => setShowLoginModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "black"  }}
+              >
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleLogin}>
+              <div style={{ marginBottom: "15px" }}>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #000", color: "#000" }}
+                  required
+                />
+              </div>
+              <div style={{ marginBottom: "15px" }}>
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #000", color: "#000" }}
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  background: "#0070f3",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+              >
+                Log In
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Centered Icons for Calendar and Experiments (Swapped) */}
       <div style={{ 
