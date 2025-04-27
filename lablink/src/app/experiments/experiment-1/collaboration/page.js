@@ -238,7 +238,7 @@ export default function NotesCollaborationPage() {
             minWidth: "100px"
           }}
         >
-          Whiteboard
+          Collaboration
         </button>
         <button 
           onClick={() => setActiveTab("saved")}
