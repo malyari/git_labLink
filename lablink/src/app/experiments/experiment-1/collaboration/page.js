@@ -7,6 +7,7 @@ import { Home, Send, Eraser, MessageSquare, X, Save, History } from "lucide-reac
 export default function NotesCollaborationPage() {
   const [messages, setMessages] = useState([]); // Chat messages
   const [newMessage, setNewMessage] = useState(""); // New message input
+  const [userName, setUserName] = useState(""); // User's name for chat
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isErasing, setIsErasing] = useState(false);
@@ -24,6 +25,10 @@ export default function NotesCollaborationPage() {
   const [saveItemName, setSaveItemName] = useState("");
   const [saveType, setSaveType] = useState(""); // "whiteboard" or "chat"
   const [isSaved, setIsSaved] = useState(false);
+  
+  // Team members for chat (predefined list of users)
+  const teamMembers = ["Maral", "Natalie", "Jordan", "Morgan", "Sam"];
+  const [selectedUser, setSelectedUser] = useState(teamMembers[0]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -38,8 +43,47 @@ export default function NotesCollaborationPage() {
   // Handle chat message submission
   const handleSendMessage = () => {
     if (newMessage.trim() !== "") {
-      setMessages((prevMessages) => [...prevMessages, newMessage]);
+      const formattedMessage = {
+        user: selectedUser,
+        text: newMessage,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages((prevMessages) => [...prevMessages, formattedMessage]);
       setNewMessage(""); // Clear input field
+      
+      // Auto-reply if the selectedUser is not Natalie
+      if (selectedUser !== "Natalie") {
+        setTimeout(() => {
+          const autoReply = {
+            user: "Natalie",
+            text: generateAutoReply(newMessage),
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          setMessages((prevMessages) => [...prevMessages, autoReply]);
+        }, 1500);
+      }
+    }
+  };
+  
+  // Generate automatic replies from Natalie
+  const generateAutoReply = (message) => {
+    // Simple reply logic based on message content
+    const lowercaseMsg = message.toLowerCase();
+    
+    if (lowercaseMsg.includes("hello") || lowercaseMsg.includes("hi") || lowercaseMsg.includes("hey")) {
+      return "Hey there! How's the project coming along?";
+    } else if (lowercaseMsg.includes("color") || lowercaseMsg.includes("design")) {
+      return "I think we should stick with our brand colors, but we could try different shades for this section.";
+    } else if (lowercaseMsg.includes("meeting") || lowercaseMsg.includes("schedule")) {
+      return "I'm free this afternoon for a meeting if that works for everyone else.";
+    } else if (lowercaseMsg.includes("idea") || lowercaseMsg.includes("suggest")) {
+      return "That's a great idea! I'd also suggest we consider the mobile experience more carefully.";
+    } else if (lowercaseMsg.includes("problem") || lowercaseMsg.includes("issue")) {
+      return "Let me know if you need help troubleshooting that issue. I ran into something similar last week.";
+    } else if (lowercaseMsg.includes("what") && lowercaseMsg.includes("think")) {
+      return "I think it looks promising! Maybe we could iterate on it a bit more before the client review?";
+    } else {
+      return "Thanks for the update! I'll take a closer look at this and get back to you with some detailed thoughts.";
     }
   };
 
@@ -99,8 +143,20 @@ export default function NotesCollaborationPage() {
 
   // Save whiteboard as image
   const handleSaveWhiteboard = () => {
-    setSaveType("whiteboard");
-    setShowSaveDialog(true);
+    try {
+      // Validate the canvas exists
+      if (!canvasRef.current) {
+        console.error("Canvas reference is null");
+        return;
+      }
+      
+      // Continue with save dialog
+      setSaveType("whiteboard");
+      setShowSaveDialog(true);
+    } catch (error) {
+      console.error("Error in handleSaveWhiteboard:", error);
+      alert("Failed to prepare whiteboard for saving. Please try again.");
+    }
   };
 
   // Save chat history
@@ -112,59 +168,129 @@ export default function NotesCollaborationPage() {
 
   // Save the current item with a name
   const saveNamedItem = () => {
-    if (saveItemName.trim() === "") {
-      setSaveItemName("Untitled");
+    try {
+      const itemName = saveItemName.trim() || "Untitled";
+      const timestamp = new Date().toLocaleString();
+      
+      if (saveType === "whiteboard") {
+        // Ensure the canvas exists
+        if (!canvasRef.current) {
+          throw new Error("Canvas reference is null");
+        }
+        
+        const canvas = canvasRef.current;
+        
+        // Use JPEG format with compression for smaller file size
+        let imageData;
+        try {
+          imageData = canvas.toDataURL("image/jpeg", 0.8);
+          
+          // Validate the data URL format
+          if (!imageData || !imageData.startsWith('data:image/')) {
+            throw new Error("Invalid image data generated");
+          }
+        } catch (err) {
+          console.error("Error creating image data:", err);
+          alert("Failed to save the whiteboard. Please try with a simpler drawing.");
+          setShowSaveDialog(false);
+          return;
+        }
+        
+        const newWhiteboard = {
+          id: Date.now().toString(), // Add a unique ID
+          name: itemName,
+          image: imageData,
+          timestamp: timestamp
+        };
+        
+        // Update state with the new whiteboard
+        setSavedWhiteboards(prev => [...prev, newWhiteboard]);
+        
+      } else if (saveType === "chat") {
+        const newChatSave = {
+          id: Date.now().toString(), // Add a unique ID
+          name: itemName,
+          messages: [...messages],
+          timestamp: timestamp
+        };
+        
+        setSavedChats(prev => [...prev, newChatSave]);
+      }
+      
+      // Visual feedback
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+      
+      // Reset and close dialog
+      setSaveItemName("");
+      setShowSaveDialog(false);
+      
+    } catch (error) {
+      console.error("Error in saveNamedItem:", error);
+      alert("Failed to save. Please try again.");
+      setShowSaveDialog(false);
     }
-    
-    const timestamp = new Date().toLocaleString();
-    
-    if (saveType === "whiteboard") {
-      const canvas = canvasRef.current;
-      const imageData = canvas.toDataURL("image/png");
-      
-      const newWhiteboard = {
-        name: saveItemName.trim() || "Untitled Whiteboard",
-        image: imageData,
-        timestamp: timestamp
-      };
-      
-      setSavedWhiteboards(prev => [...prev, newWhiteboard]);
-    } else if (saveType === "chat") {
-      const newChatSave = {
-        name: saveItemName.trim() || "Untitled Chat",
-        messages: [...messages],
-        timestamp: timestamp
-      };
-      
-      setSavedChats(prev => [...prev, newChatSave]);
-    }
-    
-    // For visual feedback
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
-    
-    // Reset and close dialog
-    setSaveItemName("");
-    setShowSaveDialog(false);
   };
 
-  // Load saved whiteboard
+  // Load saved whiteboard with thorough validation and error handling
   const loadSavedWhiteboard = (imageData) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    
-    // Clear current canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Create an image to draw onto the canvas
-    const img = new Image();
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0);
-    };
-    img.src = imageData;
-    
-    // Switch to whiteboard tab
-    setActiveTab("whiteboard");
+    try {
+      // Validate input
+      if (!imageData || typeof imageData !== 'string') {
+        console.error("Invalid image data:", imageData);
+        alert("This whiteboard cannot be loaded due to invalid data.");
+        return;
+      }
+      
+      // Validate that imageData is a proper data URL
+      if (!imageData.startsWith('data:image/')) {
+        console.error("Not a valid image data URL format");
+        alert("This whiteboard image is corrupted and cannot be loaded.");
+        return;
+      }
+      
+      // Ensure the canvas exists
+      if (!canvasRef.current) {
+        console.error("Canvas reference is null");
+        alert("Canvas not available. Please try again later.");
+        return;
+      }
+      
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      
+      // Clear current canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Create an image to draw onto the canvas
+      const img = new Image();
+      
+      // Add proper error handling
+      img.onerror = (error) => {
+        console.error("Failed to load whiteboard image:", error);
+        alert("There was a problem loading the whiteboard image. Please try again.");
+      };
+      
+      img.onload = () => {
+        try {
+          // Draw the image to fit canvas dimensions
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        } catch (drawError) {
+          console.error("Error drawing image:", drawError);
+          alert("Failed to render the whiteboard. Please try again.");
+        }
+      };
+      
+      // Set the source to the image data
+      img.src = imageData;
+      
+      // Switch to whiteboard tab
+      setActiveTab("whiteboard");
+      
+    } catch (error) {
+      console.error("Error in loadSavedWhiteboard:", error);
+      alert("An error occurred while loading the whiteboard. Please try again.");
+    }
   };
 
   // Load saved chat
@@ -403,12 +529,22 @@ export default function NotesCollaborationPage() {
                       padding: "8px",
                       background: "#e0e0e0",
                       borderRadius: "5px",
-                      marginBottom: "5px",
-                      maxWidth: "80%",
-                      color: "black", // Ensures messages appear black
+                      marginBottom: "10px",
+                      maxWidth: "90%",
+                      color: "black", 
                     }}
                   >
-                    {msg}
+                    <div style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      marginBottom: "4px",
+                      fontWeight: "bold",
+                      color: "#007bff" 
+                    }}>
+                      <span>{msg.user}</span>
+                      <span style={{ fontSize: "12px", color: "#666", fontWeight: "normal" }}>{msg.timestamp}</span>
+                    </div>
+                    <div>{msg.text}</div>
                   </div>
                 ))
               ) : (
@@ -416,44 +552,48 @@ export default function NotesCollaborationPage() {
               )}
             </div>
 
-            {/* Chat Input */}
-            <div style={{ display: "flex", marginTop: "10px" }}>
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSendMessage(); // Calls the function to send message
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  fontSize: "14px",
-                  border: "1px solid #ccc",
-                  borderRadius: "5px",
-                  color: "black"
-                }}
-              />
-              <button
-                onClick={handleSendMessage}
-                style={{
-                  marginLeft: "10px",
-                  padding: "10px 15px",
-                  fontSize: "14px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "5px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <Send size={16} />
-              </button>
+            {/* Chat Input with User Selection */}
+            <div style={{ marginTop: "10px" }}>
+              
+              {/* Message Input and Send Button */}
+              <div style={{ display: "flex" }}>
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSendMessage(); // Calls the function to send message
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    fontSize: "14px",
+                    border: "1px solid #ccc",
+                    borderRadius: "5px",
+                    color: "black"
+                  }}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  style={{
+                    marginLeft: "10px",
+                    padding: "10px 15px",
+                    fontSize: "14px",
+                    backgroundColor: "#007bff",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <Send size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -484,7 +624,7 @@ export default function NotesCollaborationPage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: "20px" }}>
                 {savedWhiteboards.map((whiteboard, index) => (
                   <div 
-                    key={index}
+                    key={whiteboard.id || index}
                     style={{
                       width: "250px",
                       border: "1px solid #ddd",
@@ -495,18 +635,46 @@ export default function NotesCollaborationPage() {
                     }}
                   >
                     <div style={{ height: "150px", overflow: "hidden", background: "#f0f0f0", cursor: "pointer" }}
-                      onClick={() => loadSavedWhiteboard(whiteboard.image)}>
-                      <img 
-                        src={whiteboard.image} 
-                        alt={whiteboard.name} 
-                        style={{ width: "100%", height: "100%", objectFit: "contain" }} 
-                      />
+                      onClick={() => {
+                        if (whiteboard && whiteboard.image) {
+                          loadSavedWhiteboard(whiteboard.image);
+                        } else {
+                          alert("This whiteboard image is missing or corrupted.");
+                        }
+                      }}>
+                      {whiteboard && whiteboard.image ? (
+                        <img 
+                          src={whiteboard.image} 
+                          alt={whiteboard.name || "Saved whiteboard"} 
+                          style={{ width: "100%", height: "100%", objectFit: "contain" }} 
+                        />
+                      ) : (
+                        <div style={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          height: "100%", 
+                          color: "#666" 
+                        }}>
+                          Image unavailable
+                        </div>
+                      )}
                     </div>
                     <div style={{ padding: "10px" }}>
-                      <div style={{ fontWeight: "bold", fontSize: "16px", marginBottom: "5px" }}>{whiteboard.name}</div>
-                      <div style={{ fontSize: "12px", color: "#666" }}>{whiteboard.timestamp}</div>
+                      <div style={{ fontWeight: "bold", fontSize: "16px", marginBottom: "5px" }}>
+                        {whiteboard.name || "Untitled"}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#666" }}>
+                        {whiteboard.timestamp || "No date"}
+                      </div>
                       <button
-                        onClick={() => loadSavedWhiteboard(whiteboard.image)}
+                        onClick={() => {
+                          if (whiteboard && whiteboard.image) {
+                            loadSavedWhiteboard(whiteboard.image);
+                          } else {
+                            alert("This whiteboard image is missing or corrupted.");
+                          }
+                        }}
                         style={{
                           marginTop: "10px",
                           width: "100%",
@@ -539,7 +707,7 @@ export default function NotesCollaborationPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {savedChats.map((chat, index) => (
                   <div 
-                    key={index}
+                    key={chat.id || index}
                     style={{
                       border: "1px solid #ddd",
                       borderRadius: "8px",
@@ -585,7 +753,13 @@ export default function NotesCollaborationPage() {
                             fontSize: "14px"
                           }}
                         >
-                          {msg}
+                          {msg.user && (
+                            <div style={{ fontWeight: "bold", color: "#007bff", marginBottom: "4px" }}>
+                              {msg.user}
+                              {msg.timestamp && <span style={{ fontSize: "12px", color: "#666", fontWeight: "normal", float: "right" }}>{msg.timestamp}</span>}
+                            </div>
+                          )}
+                          <div>{msg.text || msg}</div>
                         </div>
                       ))}
                       {chat.messages.length > 3 && (
@@ -759,6 +933,24 @@ export default function NotesCollaborationPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Success message when item is saved */}
+      {isSaved && (
+        <div style={{
+          position: "fixed",
+          bottom: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "#28a745",
+          color: "white",
+          padding: "10px 20px",
+          borderRadius: "5px",
+          zIndex: 1000,
+          boxShadow: "0 2px 10px rgba(0,0,0,0.2)"
+        }}>
+          ✅ Successfully saved!
         </div>
       )}
     </main>
