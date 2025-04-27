@@ -1,7 +1,7 @@
 "use client"; // Ensures this runs on the client side in Next.js
 
 import Link from "next/link";
-import { Home, MessageSquare, Send, X } from "lucide-react";
+import { Home, MessageSquare, Send, X, Check } from "lucide-react";
 import { useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -14,6 +14,14 @@ export default function CalendarPage() {
   const [isChatOpen, setIsChatOpen] = useState(false); // Toggle AI chat visibility
   const [messages, setMessages] = useState([]); // Stores chat messages
   const [newMessage, setNewMessage] = useState(""); // New user input
+  const [selectedCalendar, setSelectedCalendar] = useState("fullcalendar");
+
+
+  const calendarOptions = [
+  { label: "Google", value: "google",  color: "#DB4437" },
+  { label: "Outlook",value: "outlook", color: "#0078D4" },
+  { label: "Mac",    value: "mac",     color: "#FF3B30" },
+];
 
   // Function to adjust end date for FullCalendar
   const fixEndDate = (dateStr) => {
@@ -120,20 +128,68 @@ export default function CalendarPage() {
     <main style={{ display: "flex", height: "100vh", padding: "20px" }}>
       {/* Sidebar (Left Side) */}
       <div style={{ width: "250px", padding: "20px", borderRight: "2px solid #ccc" }}>
-        <h3>📌 Calendars</h3>
+        <h3>📌 LabLink Calendar</h3>
         <table style={{ width: "100%", borderCollapse: "collapse", cursor: "pointer" }}>
           <tbody>
             <tr onClick={toggleEquipment}>
-              <td style={{ backgroundColor: showEquipment ? "blue" : "lightgray", width: "30px", height: "20px", borderRadius: "4px" }}></td>
-              <td style={{ paddingLeft: "10px" }}>Equipment {showEquipment ? "(Shown)" : "(Hidden)"}</td>
+              <td style={{ width: "30px", height: "20px", border: `2px solid ${showEquipment ? "blue" : "lightgray"}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                {showEquipment && <Check size={20} color="blue" />}
+              </td>
+              <td style={{ paddingLeft: "10px" }}>Equipment </td>
             </tr>
             <tr onClick={toggleExperiment}>
-              <td style={{ backgroundColor: showExperiment ? "green" : "lightgray", width: "30px", height: "20px", borderRadius: "4px" }}></td>
-              <td style={{ paddingLeft: "10px" }}>Experiment {showExperiment ? "(Shown)" : "(Hidden)"}</td>
+              <td style={{ width: "30px", height: "20px", border: `2px solid ${showExperiment ? "green" : "lightgray"}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                {showExperiment && <Check size={20} color="green" />}
+              </td>
+              <td style={{ paddingLeft: "10px" }}>Experiment </td>
             </tr>
           </tbody>
         </table>
+
+        {/* --- Main Calendar chooser --- */}
+        <div style={{ height: "5rem" }} />
+        <h3>📌 Other Calendars</h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", cursor: "pointer", marginBottom: "1rem", }}>
+          <tbody>
+            {calendarOptions.map(({ label, value, color }) => (
+              <tr
+                key={value}
+                onClick={() => {
+                  if (selectedCalendar === value) {
+                    setSelectedCalendar(null);
+                    alert(`Turning off ${label}`);
+                  } else {
+                    setSelectedCalendar(value);
+                    alert(`Switching to ${label}`);
+                  }
+                }}
+              >
+                <td
+                  style={{
+                    width: "30px",
+                    height: "20px",
+                    border: `2px solid ${
+                      selectedCalendar === value ? color : "lightgray"
+                    }`,
+                    borderRadius: "4px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {selectedCalendar === value && (
+                    <Check size={16} color={color} />
+                  )}
+                </td>
+                <td style={{ paddingLeft: "10px" }}>{label}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+
       </div>
+
 
       {/* Main Content Area */}
       <div style={{ flex: 1, textAlign: "center" }}>
