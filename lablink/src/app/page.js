@@ -49,8 +49,8 @@ export default function Home() {
       position: "relative", 
       height: "100vh"
     }}>
-      {/* Title and Subtitle */}
-      <h1>🚀 Welcome to LabLink 🧪</h1>
+      {/* Title and Subtitle - Moved to left top corner */}
+      <h1 style={{ position: "absolute", top: "20px", left: "20px", margin: "0", textAlign: "left" }}>🚀 Welcome to LabLink 🧪</h1>
       {/* <h1>🚀 Hello, Scientists! 🧪</h1> */}
       {/* <p>Welcome to the app that makes your life easier!</p> */}
 
