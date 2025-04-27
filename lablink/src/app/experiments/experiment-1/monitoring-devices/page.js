@@ -68,7 +68,7 @@ export default function MonitoringDevicesPage() {
           Experiment 1
         </Link>
         <span style={{ color: "var(--separator-color, #666)" }}>/</span>
-        <span style={{ color: "var(--inactive-color, #aaa)" }}>Monitoring Devices</span>
+        <span style={{ color: "var(--inactive-color, #aaa)" }}>Monitoring</span>
       </div>
 
       {/* Main content area - Add your monitoring devices content here */}

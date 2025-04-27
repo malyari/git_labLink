@@ -1,15 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Home, Camera, BookOpen, BarChart2, MessageSquare, Activity, Send, X, FileText, Users } from "lucide-react"; 
 
 export default function Experiment1Page() {
+  // State for responsive design
+  const [isMobile, setIsMobile] = useState(false);
 
   // State for chat functionality
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+
+  // Check if screen is mobile on load and when window resizes
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    // Initial check
+    checkIfMobile();
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, []);
 
   // Function that handles sending messages
   const handleSendMessage = () => {
@@ -26,16 +46,16 @@ export default function Experiment1Page() {
     setNewMessage("");
   };
 
-
   return (
     <main style={{ 
       textAlign: "center", 
-      padding: "50px", 
+      padding: isMobile ? "20px" : "50px", 
       position: "relative", 
-      height: "100vh",
+      minHeight: "100vh",
       backgroundColor: "#121212",
       color: "white",
-      fontFamily: "Arial, sans-serif"
+      fontFamily: "Arial, sans-serif",
+      overflowX: "hidden"
     }}>
       {/* Breadcrumb Navigation (Top-left) */}
       <div style={{ 
@@ -45,7 +65,10 @@ export default function Experiment1Page() {
         display: "flex", 
         alignItems: "center", 
         gap: "8px",
-        fontSize: "16px"
+        fontSize: isMobile ? "14px" : "16px",
+        maxWidth: isMobile ? "calc(100vw - 80px)" : "auto",
+        overflow: "hidden",
+        whiteSpace: "nowrap"
       }}>
         <Link href="/" style={{ 
           color: "white", 
@@ -53,14 +76,14 @@ export default function Experiment1Page() {
           alignItems: "center",
           textDecoration: "none"
         }}>
-          <Home size={20} />
+          <Home size={isMobile ? 16 : 20} />
         </Link>
         <span style={{ color: "#666" }}>/</span>
         <Link href="/experiments" style={{ 
           color: "white", 
           textDecoration: "none"
         }}>
-          Experiments
+          {isMobile ? "Exp" : "Experiments"}
         </Link>
         <span style={{ color: "#666" }}>/</span>
         <span style={{ color: "#aaa" }}>Experiment 1</span>
@@ -74,22 +97,22 @@ export default function Experiment1Page() {
             background: "#007bff",
             color: "white",
             border: "none",
-            padding: "12px",
+            padding: isMobile ? "8px" : "12px",
             borderRadius: "50%",
             cursor: "pointer",
           }}
         >
-          {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
+          {isChatOpen ? <X size={isMobile ? 20 : 24} /> : <MessageSquare size={isMobile ? 20 : 24} />}
         </button>
       </div>
 
       {/* Visual Tab Grid with Icons and Labels */}
       <div style={{ 
         display: "grid", 
-        gridTemplateColumns: "repeat(3, 1fr)", 
-        gap: "30px", 
+        gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", 
+        gap: isMobile ? "15px" : "30px", 
         maxWidth: "900px", 
-        margin: "90px auto 0 auto"
+        margin: isMobile ? "70px auto 0 auto" : "90px auto 0 auto"
       }}>
         {/* Photos Tab */}
         <Link href="/experiments/experiment-1/equipment-setup" style={{ textDecoration: "none" }}>
@@ -97,17 +120,17 @@ export default function Experiment1Page() {
             display: "flex", 
             flexDirection: "column", 
             alignItems: "center",
-            padding: "25px", 
+            padding: isMobile ? "15px" : "25px", 
             backgroundColor: "#1e1e1e", 
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
             transition: "transform 0.2s, box-shadow 0.2s",
             cursor: "pointer"
           }}>
-            <Camera size={64} color="#70d6ff" />
+            <Camera size={isMobile ? 40 : 64} color="#70d6ff" />
             <span style={{ 
-              marginTop: "15px", 
-              fontSize: "18px", 
+              marginTop: isMobile ? "10px" : "15px", 
+              fontSize: isMobile ? "14px" : "18px", 
               fontWeight: "bold",
               color: "white"
             }}>Photos</span>
@@ -120,20 +143,20 @@ export default function Experiment1Page() {
             display: "flex", 
             flexDirection: "column", 
             alignItems: "center",
-            padding: "25px", 
+            padding: isMobile ? "15px" : "25px", 
             backgroundColor: "#1e1e1e", 
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
             transition: "transform 0.2s, box-shadow 0.2s",
             cursor: "pointer"
           }}>
-            <BookOpen size={64} color="#00008B" />
+            <BookOpen size={isMobile ? 40 : 64} color="#00008B" />
             <span style={{ 
-              marginTop: "15px", 
-              fontSize: "18px", 
+              marginTop: isMobile ? "10px" : "15px", 
+              fontSize: isMobile ? "14px" : "18px", 
               fontWeight: "bold",
               color: "white"
-            }}>Trainings</span>
+            }}>Training</span>
           </div>
         </Link>
 
@@ -143,17 +166,17 @@ export default function Experiment1Page() {
             display: "flex", 
             flexDirection: "column", 
             alignItems: "center",
-            padding: "25px", 
+            padding: isMobile ? "15px" : "25px", 
             backgroundColor: "#1e1e1e", 
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
             transition: "transform 0.2s, box-shadow 0.2s",
             cursor: "pointer"
           }}>
-            <BarChart2 size={64} color="#ff9770" />
+            <BarChart2 size={isMobile ? 40 : 64} color="#ff9770" />
             <span style={{ 
-              marginTop: "15px", 
-              fontSize: "18px", 
+              marginTop: isMobile ? "10px" : "15px", 
+              fontSize: isMobile ? "14px" : "18px", 
               fontWeight: "bold",
               color: "white"
             }}>Data/Analysis</span>
@@ -166,17 +189,17 @@ export default function Experiment1Page() {
             display: "flex", 
             flexDirection: "column", 
             alignItems: "center",
-            padding: "25px", 
+            padding: isMobile ? "15px" : "25px", 
             backgroundColor: "#1e1e1e", 
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
             transition: "transform 0.2s, box-shadow 0.2s",
             cursor: "pointer"
           }}>
-            <FileText size={64} color="#70ff94" />
+            <FileText size={isMobile ? 40 : 64} color="#70ff94" />
             <span style={{ 
-              marginTop: "15px", 
-              fontSize: "18px", 
+              marginTop: isMobile ? "10px" : "15px", 
+              fontSize: isMobile ? "14px" : "18px", 
               fontWeight: "bold",
               color: "white"
             }}>Notes</span>
@@ -189,17 +212,17 @@ export default function Experiment1Page() {
             display: "flex", 
             flexDirection: "column", 
             alignItems: "center",
-            padding: "25px", 
+            padding: isMobile ? "15px" : "25px", 
             backgroundColor: "#1e1e1e", 
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
             transition: "transform 0.2s, box-shadow 0.2s",
             cursor: "pointer"
           }}>
-            <Users size={64} color="#bf70ff" />
+            <Users size={isMobile ? 40 : 64} color="#bf70ff" />
             <span style={{ 
-              marginTop: "15px", 
-              fontSize: "18px", 
+              marginTop: isMobile ? "10px" : "15px", 
+              fontSize: isMobile ? "14px" : "18px", 
               fontWeight: "bold",
               color: "white"
             }}>Collaboration</span>
@@ -212,20 +235,20 @@ export default function Experiment1Page() {
             display: "flex", 
             flexDirection: "column", 
             alignItems: "center",
-            padding: "25px", 
+            padding: isMobile ? "15px" : "25px", 
             backgroundColor: "#1e1e1e", 
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
             transition: "transform 0.2s, box-shadow 0.2s",
             cursor: "pointer"
           }}>
-            <Activity size={64} color="#e0ff70" />
+            <Activity size={isMobile ? 40 : 64} color="#e0ff70" />
             <span style={{ 
-              marginTop: "15px", 
-              fontSize: "18px", 
+              marginTop: isMobile ? "10px" : "15px", 
+              fontSize: isMobile ? "14px" : "18px", 
               fontWeight: "bold",
               color: "white"
-            }}>Monitoring Devices</span>
+            }}>Monitoring</span>
           </div>
         </Link>
       </div>
@@ -237,8 +260,8 @@ export default function Experiment1Page() {
             position: "fixed",
             top: "70px",
             right: "20px",
-            width: "350px",
-            height: "400px",
+            width: isMobile ? "calc(100% - 40px)" : "350px",
+            height: isMobile ? "300px" : "400px",
             background: "white",
             border: "2px solid #ccc",
             borderRadius: "8px",
@@ -249,7 +272,14 @@ export default function Experiment1Page() {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Chat Header */}
-          <div style={{ background: "#007bff", color: "white", textAlign: "center", padding: "10px", fontWeight: "bold" }}>
+          <div style={{ 
+            background: "#007bff", 
+            color: "white", 
+            textAlign: "center", 
+            padding: isMobile ? "8px" : "10px", 
+            fontWeight: "bold",
+            fontSize: isMobile ? "14px" : "16px"
+          }}>
             🤖 AI Assistant
           </div>
 
@@ -266,12 +296,16 @@ export default function Experiment1Page() {
                       maxWidth: "80%",
                       color: "black",
                       alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+                      marginLeft: msg.sender === "user" ? "auto" : "0",
+                      fontSize: isMobile ? "14px" : "16px",
                     }}
                   >
                     {msg.text}
                   </p>
                 ))
-              : <p style={{ color: "gray", textAlign: "center" }}>Ask me anything about your work!</p>}
+              : <p style={{ color: "gray", textAlign: "center", fontSize: isMobile ? "14px" : "16px" }}>
+                  Ask me anything about your work!
+                </p>}
           </div>
 
           {/* Chat Input */}
@@ -282,19 +316,26 @@ export default function Experiment1Page() {
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
               placeholder="Type your question..."
-              style={{ flex: 1, padding: "8px", border: "1px solid #ccc", borderRadius: "5px", color: "black" }}
+              style={{ 
+                flex: 1, 
+                padding: isMobile ? "6px" : "8px", 
+                border: "1px solid #ccc", 
+                borderRadius: "5px", 
+                color: "black",
+                fontSize: isMobile ? "14px" : "16px"
+              }}
             />
             <button
               onClick={handleSendMessage}
               style={{
                 marginLeft: "5px",
-                padding: "8px",
+                padding: isMobile ? "6px" : "8px",
                 background: "#007bff",
                 color: "white",
                 borderRadius: "5px",
               }}
             >
-              <Send size={16} />
+              <Send size={isMobile ? 14 : 16} />
             </button>
           </div>
         </div>
