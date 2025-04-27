@@ -1,14 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Home, MessageSquare, Send, X } from "lucide-react";
+import { Home, MessageSquare, Send, X, Plus, Trash2, FileText, Activity, Upload } from "lucide-react";
 
 export default function MonitoringDevicesPage() {
   // State variables
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [devices, setDevices] = useState([
+    { 
+      id: 1, 
+      name: "Temperature Sensor A", 
+      status: "Online", 
+      lastUpdated: "2025-04-27 09:30", 
+      manuals: [], 
+      readings: [
+        { timestamp: "09:00", value: "22.5°C" },
+        { timestamp: "09:15", value: "22.7°C" },
+        { timestamp: "09:30", value: "22.6°C" },
+      ]
+    }
+  ]);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [newDeviceName, setNewDeviceName] = useState("");
+  const [showAddDeviceForm, setShowAddDeviceForm] = useState(false);
+  const [activeTab, setActiveTab] = useState("status");
+  const [fileUploadName, setFileUploadName] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   // AI messaging function
   const handleSendMessage = () => {
@@ -23,6 +44,114 @@ export default function MonitoringDevicesPage() {
     }, 1000);
 
     setNewMessage("");
+  };
+
+  // Handle device selection
+  const handleSelectDevice = (device) => {
+    setSelectedDevice(device);
+    setActiveTab("status");
+  };
+
+  // Add new device
+  const handleAddDevice = () => {
+    if (newDeviceName.trim() === "") return;
+    
+    const newDevice = {
+      id: Date.now(),
+      name: newDeviceName,
+      status: "Offline",
+      lastUpdated: new Date().toLocaleString(),
+      manuals: [],
+      readings: []
+    };
+    
+    setDevices([...devices, newDevice]);
+    setNewDeviceName("");
+    setShowAddDeviceForm(false);
+  };
+
+  // Delete device
+  const handleDeleteDevice = (deviceId) => {
+    const updatedDevices = devices.filter(device => device.id !== deviceId);
+    setDevices(updatedDevices);
+    
+    if (selectedDevice && selectedDevice.id === deviceId) {
+      setSelectedDevice(null);
+    }
+  };
+
+  // Handle file selection
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      
+      // Set file name in input if not already set
+      if (fileUploadName === "") {
+        setFileUploadName(file.name);
+      }
+    }
+  };
+
+  // Handle file drop
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
+      
+      // Set file name in input if not already set
+      if (fileUploadName === "") {
+        setFileUploadName(file.name);
+      }
+    }
+  };
+
+  // Prevent default behavior for drag events
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  // Trigger file input click
+  const triggerFileInput = () => {
+    fileInputRef.current.click();
+  };
+
+  // Handle file upload - Fixed version
+  const handleFileUpload = () => {
+    if (!selectedDevice) return;
+    
+    // If we don't have a file selected yet, open the file browser instead of uploading
+    if (!selectedFile) {
+      triggerFileInput();
+      return;
+    }
+    
+    const fileName = fileUploadName.trim() !== "" ? fileUploadName : selectedFile.name;
+    
+    // Create file URL for the selected file
+    const fileUrl = URL.createObjectURL(selectedFile);
+    
+    const updatedDevices = devices.map(device => {
+      if (device.id === selectedDevice.id) {
+        return {
+          ...device,
+          manuals: [...device.manuals, {
+            name: fileName,
+            url: fileUrl
+          }]
+        };
+      }
+      return device;
+    });
+    
+    setDevices(updatedDevices);
+    setSelectedDevice(updatedDevices.find(d => d.id === selectedDevice.id));
+    setFileUploadName("");
+    setSelectedFile(null);
+    
+    // Show success message
+    alert(`File "${fileName}" uploaded successfully!`);
   };
 
   return (
@@ -71,20 +200,478 @@ export default function MonitoringDevicesPage() {
         <span style={{ color: "var(--inactive-color, #aaa)" }}>Monitoring</span>
       </div>
 
-      {/* Main content area - Add your monitoring devices content here */}
+      {/* Main content area */}
       <div style={{ 
         display: "flex", 
-        height: "70vh", 
+        flexDirection: "column",
+        height: "80vh", 
         margin: "90px auto 10px auto",
         border: "2px solid #ccc",
         borderRadius: "8px",
         overflow: "hidden",
         background: "#f9f9f9",
-        maxWidth: "100%",
+        maxWidth: "1200px",
+        width: "100%",
         position: "relative"
       }}>
-        <h2 style={{ color: "#000", margin: "20px auto" }}>Monitoring Devices Dashboard</h2>
-        {/* Add your monitoring devices content here */}
+        
+        <div style={{ display: "flex", height: "calc(100% - 70px)", overflow: "hidden" }}>
+          {/* Device List Sidebar */}
+          <div style={{ 
+            width: "300px", 
+            borderRight: "1px solid #ccc", 
+            padding: "10px",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden"
+          }}>
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "center",
+              marginBottom: "10px"
+            }}>
+              <h3 style={{ margin: 0, color: "#333" }}>Devices</h3>
+              <button 
+                onClick={() => setShowAddDeviceForm(!showAddDeviceForm)}
+                style={{ 
+                  background: "#28a745", 
+                  color: "white", 
+                  border: "none", 
+                  borderRadius: "4px",
+                  padding: "6px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center"
+                }}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            
+            {/* Add Device Form */}
+            {showAddDeviceForm && (
+              <div style={{ 
+                padding: "10px",
+                marginBottom: "10px",
+                background: "#f0f0f0",
+                borderRadius: "4px"
+              }}>
+                <input 
+                  type="text" 
+                  value={newDeviceName}
+                  onChange={(e) => setNewDeviceName(e.target.value)}
+                  placeholder="Enter device name"
+                  style={{ 
+                    width: "100%", 
+                    padding: "8px", 
+                    marginBottom: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ccc",
+                    color: "#000000"
+                  }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <button 
+                    onClick={handleAddDevice}
+                    style={{ 
+                      background: "#28a745", 
+                      color: "white", 
+                      border: "none", 
+                      borderRadius: "4px",
+                      padding: "8px 12px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Add
+                  </button>
+                  <button 
+                    onClick={() => setShowAddDeviceForm(false)}
+                    style={{ 
+                      background: "#6c757d", 
+                      color: "white", 
+                      border: "none", 
+                      borderRadius: "4px",
+                      padding: "8px 12px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Device List */}
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {devices.length === 0 ? (
+                <p style={{ color: "#666", textAlign: "center" }}>No devices added yet</p>
+              ) : (
+                devices.map(device => (
+                  <div 
+                    key={device.id}
+                    onClick={() => handleSelectDevice(device)}
+                    style={{
+                      padding: "12px",
+                      borderRadius: "4px",
+                      marginBottom: "8px",
+                      background: selectedDevice && selectedDevice.id === device.id ? "#d1e7ff" : "white",
+                      border: "1px solid #ddd",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}
+                  >
+                    <div style={{ textAlign: "left" }}>
+                      <div style={{ fontWeight: "bold", marginBottom: "4px", color: "#000000" }}>{device.name}</div>
+                      <div style={{ 
+                        fontSize: "12px", 
+                        display: "flex", 
+                        alignItems: "center",
+                        color: device.status === "Online" ? "#28a745" : "#dc3545"
+                      }}>
+                        <span style={{ 
+                          height: "8px", 
+                          width: "8px", 
+                          borderRadius: "50%", 
+                          background: device.status === "Online" ? "#28a745" : "#dc3545",
+                          display: "inline-block",
+                          marginRight: "5px"
+                        }}></span>
+                        {device.status}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm("Are you sure you want to delete this device?")) {
+                          handleDeleteDevice(device.id);
+                        }
+                      }}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "#dc3545",
+                        cursor: "pointer",
+                        padding: "5px"
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          
+          {/* Device Details Area */}
+          <div style={{ flex: 1, padding: "15px", display: "flex", flexDirection: "column" }}>
+            {selectedDevice ? (
+              <>
+                {/* Device Header */}
+                <div style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center",
+                  marginBottom: "15px"
+                }}>
+                  <h3 style={{ margin: 0, color: "#000000" }}>{selectedDevice.name}</h3>
+                  <div style={{ fontSize: "12px", color: "#666" }}>
+                    Last Updated: {selectedDevice.lastUpdated}
+                  </div>
+                </div>
+                
+                {/* Tabs */}
+                <div style={{ 
+                  display: "flex", 
+                  borderBottom: "1px solid #ccc", 
+                  marginBottom: "15px" 
+                }}>
+                  <button 
+                    onClick={() => setActiveTab("status")} 
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      borderBottom: activeTab === "status" ? "2px solid #007bff" : "none",
+                      padding: "8px 15px",
+                      color: activeTab === "status" ? "#007bff" : "#333",
+                      fontWeight: activeTab === "status" ? "bold" : "normal",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Activity size={16} />
+                      Status
+                    </div>
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("manuals")} 
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      borderBottom: activeTab === "manuals" ? "2px solid #007bff" : "none",
+                      padding: "8px 15px",
+                      color: activeTab === "manuals" ? "#007bff" : "#333",
+                      fontWeight: activeTab === "manuals" ? "bold" : "normal",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <FileText size={16} />
+                      Manuals
+                    </div>
+                  </button>
+                </div>
+                
+                {/* Tab Content */}
+                <div style={{ flex: 1, overflow: "auto" }}>
+                  {activeTab === "status" && (
+                    <div>
+                      <div style={{ 
+                        padding: "15px", 
+                        background: "#fff", 
+                        borderRadius: "6px", 
+                        border: "1px solid #ddd",
+                        marginBottom: "15px"
+                      }}>
+                        <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Current Status</h4>
+                        <div style={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          height: "100px", 
+                          background: "#f5f5f5", 
+                          borderRadius: "4px",
+                          fontSize: "24px",
+                          color: selectedDevice.status === "Online" ? "#28a745" : "#dc3545"
+                        }}>
+                          {selectedDevice.status}
+                        </div>
+                      </div>
+                      
+                      <div style={{ 
+                        padding: "15px", 
+                        background: "#fff", 
+                        borderRadius: "6px", 
+                        border: "1px solid #ddd" 
+                      }}>
+                        <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Recent Readings</h4>
+                        {selectedDevice.readings && selectedDevice.readings.length > 0 ? (
+                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr>
+                                <th style={{ padding: "8px", borderBottom: "1px solid #ddd", textAlign: "left" }}>Time</th>
+                                <th style={{ padding: "8px", borderBottom: "1px solid #ddd", textAlign: "right" }}>Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedDevice.readings.map((reading, index) => (
+                                <tr key={index}>
+                                  <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "left" }}>{reading.timestamp}</td>
+                                  <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "right", color: "#000000" }}>{reading.value}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p style={{ color: "#666", textAlign: "center" }}>No readings available</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {activeTab === "manuals" && (
+                    <div>
+                      <div style={{ 
+                        padding: "15px", 
+                        background: "#fff", 
+                        borderRadius: "6px", 
+                        border: "1px solid #ddd",
+                        marginBottom: "15px"
+                      }}>
+                        <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Uploaded Manuals</h4>
+                        {selectedDevice.manuals && selectedDevice.manuals.length > 0 ? (
+                          <ul style={{ 
+                            listStyle: "none", 
+                            padding: 0, 
+                            margin: 0 
+                          }}>
+                            {selectedDevice.manuals.map((manual, index) => (
+                              <li 
+                                key={index}
+                                style={{
+                                  padding: "10px",
+                                  background: "#f5f5f5",
+                                  borderRadius: "4px",
+                                  marginBottom: "8px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "10px"
+                                }}
+                              >
+                                <FileText size={16} color="#007bff" />
+                                <span style={{ color: "#000000" }}>
+                                  {typeof manual === 'string' ? manual : manual.name}
+                                </span>
+                                <div style={{ 
+                                  marginLeft: "auto",
+                                  display: "flex",
+                                  gap: "10px" 
+                                }}>
+                                  {manual.url && (
+                                    <a 
+                                      href={manual.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        color: "#007bff",
+                                        textDecoration: "none",
+                                        fontSize: "12px"
+                                      }}
+                                    >
+                                      View
+                                    </a>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm("Are you sure you want to delete this manual?")) {
+                                        const updatedDevices = devices.map(device => {
+                                          if (device.id === selectedDevice.id) {
+                                            const updatedManuals = [...device.manuals];
+                                            updatedManuals.splice(index, 1);
+                                            return {
+                                              ...device,
+                                              manuals: updatedManuals
+                                            };
+                                          }
+                                          return device;
+                                        });
+                                        setDevices(updatedDevices);
+                                        setSelectedDevice(updatedDevices.find(d => d.id === selectedDevice.id));
+                                      }
+                                    }}
+                                    style={{
+                                      background: "transparent",
+                                      border: "none",
+                                      color: "#dc3545",
+                                      cursor: "pointer",
+                                      padding: "0",
+                                      fontSize: "12px"
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p style={{ color: "#666", textAlign: "center" }}>No manuals uploaded</p>
+                        )}
+                      </div>
+                      
+                      <div style={{ 
+                        padding: "15px", 
+                        background: "#fff", 
+                        borderRadius: "6px", 
+                        border: "1px solid #ddd" 
+                      }}>
+                        <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Upload Manual</h4>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                          <input 
+                            type="text" 
+                            value={fileUploadName}
+                            onChange={(e) => setFileUploadName(e.target.value)}
+                            placeholder="Enter file name (e.g., manual.pdf)"
+                            style={{ 
+                              flex: 1,
+                              padding: "8px", 
+                              borderRadius: "4px",
+                              border: "1px solid #ccc",
+                              color: "#000000"
+                            }}
+                          />
+                          <button 
+                            onClick={handleFileUpload}
+                            style={{ 
+                              background: "#007bff", 
+                              color: "white", 
+                              border: "none", 
+                              borderRadius: "4px",
+                              padding: "8px 12px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px"
+                            }}
+                          >
+                            <Upload size={16} />
+                            Upload
+                          </button>
+                        </div>
+                        
+                        {/* Hidden file input */}
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          style={{ display: "none" }}
+                        />
+                        
+                        <div 
+                          style={{ 
+                            marginTop: "10px", 
+                            background: "#f5f5f5", 
+                            padding: "20px", 
+                            borderRadius: "4px", 
+                            border: "2px dashed #ccc",
+                            textAlign: "center",
+                            color: "#666",
+                            cursor: "pointer"
+                          }}
+                          onClick={triggerFileInput}
+                          onDrop={handleFileDrop}
+                          onDragOver={handleDragOver}
+                        >
+                          {selectedFile ? (
+                            <div>
+                              <p style={{ color: "#007bff", fontWeight: "bold" }}>
+                                Selected: {selectedFile.name}
+                              </p>
+                              <p style={{ fontSize: "12px", marginTop: "5px" }}>
+                                {(selectedFile.size / 1024).toFixed(2)} KB
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <p>Drag and drop files here or click to browse</p>
+                              <p style={{ fontSize: "12px", marginTop: "5px" }}>
+                                Supported formats: PDF, DOC, TXT (Max: 10MB)
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: "#666"
+              }}>
+                <p>Select a device to view details</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* AI chat box */}
@@ -144,7 +731,7 @@ export default function MonitoringDevicesPage() {
                       {msg.text}
                     </p>
                   ))
-                : <p style={{ color: "gray", textAlign: "center" }}>Ask me anything about your work!</p>}
+                : <p style={{ color: "gray", textAlign: "center" }}>Ask me anything about your devices!</p>}
             </div>
 
             {/* Chat Input */}
