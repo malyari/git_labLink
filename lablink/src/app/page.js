@@ -1,7 +1,7 @@
 "use client"; // Ensures this runs on the client side in Next.js
 
 import Link from "next/link";
-import { FlaskConical, Calendar, Settings, MessageSquare, Send, X, User } from "lucide-react";
+import { FlaskConical, Calendar, Settings, MessageSquare, Send, X, User, Bell } from "lucide-react"; // Added Bell icon
 import { useState } from "react";
 
 export default function Home() {
@@ -12,6 +12,8 @@ export default function Home() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // Add state for notification
+  const [hasNotification, setHasNotification] = useState(true);
 
   const handleSendMessage = () => {
     if (newMessage.trim() === "") return;
@@ -51,6 +53,46 @@ export default function Home() {
       <h1>🚀 Welcome to LabLink 🧪</h1>
       {/* <h1>🚀 Hello, Scientists! 🧪</h1> */}
       {/* <p>Welcome to the app that makes your life easier!</p> */}
+
+      {/* Message Notification Button */}
+      <div style={{ position: "fixed", top: "20px", right: "120px", zIndex: 1100 }}>
+        <Link href="/experiments/experiment-1/training-guidelines">
+          <button
+            onClick={() => setHasNotification(false)}
+            style={{
+              background: hasNotification ? "#ff4757" : "#007bff",
+              color: "white",
+              border: "none",
+              padding: "12px",
+              borderRadius: "50%",
+              cursor: "pointer",
+              position: "relative",
+            }}
+          >
+            <Bell size={24} />
+            {hasNotification && (
+              <span style={{
+                position: "absolute",
+                top: "-5px",
+                right: "-5px",
+                background: "white",
+                color: "#ff4757",
+                borderRadius: "50%",
+                width: "20px",
+                height: "20px",
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "bold",
+                border: "2px solid #ff4757"
+              }}>
+                1
+              </span>
+            )}
+          </button>
+        </Link>
+      </div>
 
       {/* Login/User Profile Button (Top Right) */}
       <div style={{ position: "fixed", top: "20px", right: "70px", zIndex: 1100 }}>
