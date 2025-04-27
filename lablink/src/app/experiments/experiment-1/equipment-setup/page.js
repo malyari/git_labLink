@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ChevronLeft, MoreVertical } from "lucide-react";
+import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ChevronLeft, MoreVertical, XCircle } from "lucide-react";
 import Image from "next/image";
 
 export default function EquipmentSetupPage() {
@@ -24,6 +24,10 @@ export default function EquipmentSetupPage() {
   const [showItemActions, setShowItemActions] = useState(null); // Tracks which item shows mobile actions
   const fileInputRef = useRef(null);
   const renameInputRef = useRef(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [enlargedImage, setEnlargedImage] = useState({ show: false, url: "", name: "", isLoading: false, id: null});
+
 
   // Detect mobile devices
   useEffect(() => {
@@ -155,14 +159,35 @@ export default function EquipmentSetupPage() {
       }
     };
 
+    // Close enlarged image modal when clicking outside
+    const handleClickOutsideModal = (e) => {
+      if (enlargedImage.show && 
+          e.target.id !== 'enlarged-image-container' && 
+          !e.target.closest('#enlarged-image-inner')) {
+        setEnlargedImage({ show: false, url: "", name: "" });
+      }
+    };
+
     window.addEventListener("click", handleClickOutside);
     window.addEventListener("click", handleClickOutsideRename);
+    window.addEventListener("click", handleClickOutsideModal);
+    
+    // Handle escape key for modal
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape' && enlargedImage.show) {
+        setEnlargedImage({ show: false, url: "", name: "" });
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscKey);
     
     return () => {
       window.removeEventListener("click", handleClickOutside);
       window.removeEventListener("click", handleClickOutsideRename);
+      window.removeEventListener("click", handleClickOutsideModal);
+      window.removeEventListener('keydown', handleEscKey);
     };
-  }, [contextMenu.show, renaming.active, showItemActions]);
+  }, [contextMenu.show, renaming.active, showItemActions, enlargedImage.show]);
 
   // Make sure to clear timers when unmounting
   useEffect(() => {
@@ -379,8 +404,8 @@ export default function EquipmentSetupPage() {
     });
     setContextMenu({ show: false, x: 0, y: 0, item: null, key: "" });
   };
-  
-  const handlePasteImage = () => {
+
+  const handlePasteImage = async () => {
     if (!clipboard.key || !clipboard.item) {
       console.log("Nothing in clipboard");
       return;
@@ -388,44 +413,156 @@ export default function EquipmentSetupPage() {
     
     console.log("Pasting from clipboard:", clipboard);
     
-    setFolderStructure(prevStructure => {
-      const updated = JSON.parse(JSON.stringify(prevStructure)); // Deep clone
-      
-      // Create a unique name if the same file already exists in the target folder
-      let newKey = clipboard.item.originalName || clipboard.key;
-      let counter = 1;
-      
-      while (updated.Folders[currentFolder][newKey]) {
-        const nameParts = newKey.split('.');
-        const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
-        const baseName = nameParts.join('.');
-        newKey = `${baseName} (${counter})${ext}`;
-        counter++;
-      }
-      
-      // Create a completely new item to avoid reference issues
-      const newItem = {
-        url: clipboard.item.url,
-        id: clipboard.item.id,
-        originalName: newKey,
-        isLocal: clipboard.item.isLocal
-      };
-      
-      // Add the item to the current folder
-      updated.Folders[currentFolder][newKey] = newItem;
-      
-      // For cut operations, remove the original
-      if (clipboard.action === "cut") {
-        delete updated.Folders[clipboard.folder][clipboard.key];
-      }
-      
-      console.log("Updated structure:", updated);
-      return updated;
-    });
+    // Create a unique name for display purposes
+    let newFileName = clipboard.item.originalName || clipboard.key;
+    let counter = 1;
     
-    // Always clear clipboard after paste to prevent multiple pastes
+    // Check if file with same name exists in target folder
+    while (Object.values(folderStructure.Folders[currentFolder]).some(
+      item => item.originalName === newFileName
+    )) {
+      const nameParts = newFileName.split('.');
+      const ext = nameParts.length > 1 ? `.${nameParts.pop()}` : '';
+      const baseName = nameParts.join('.');
+      newFileName = `${baseName} (${counter})${ext}`;
+      counter++;
+    }
+    
+    // Generate a new ID
+    const newId = `copy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // If we're pasting to Equipment folder and the item has an ID (it's in Google Drive)
+    if (currentFolder === "Equipment" && clipboard.item.id) {
+      try {
+        // First show a temporary copy with loading indicator
+        const tempId = `temp_${Date.now()}`;
+        setFolderStructure(prevStructure => {
+          const updated = { ...prevStructure };
+          updated.Folders[currentFolder][tempId] = {
+            url: clipboard.item.url, 
+            id: tempId,
+            originalName: `${newFileName} (copying...)`,
+            isLoading: true
+          };
+          return updated;
+        });
+        
+        // Call API to duplicate the file in Google Drive
+        const res = await fetch("/api/copyFile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            fileId: clipboard.item.id,
+            newName: newFileName 
+          }),
+        });
+        
+        const data = await res.json();
+        console.log("File copy response:", data);
+        
+        if (data.success && data.file && data.file.id) {
+          // Remove temporary item
+          setFolderStructure(prevStructure => {
+            const updated = { ...prevStructure };
+            delete updated.Folders[currentFolder][tempId];
+            return updated;
+          });
+          
+          setFolderStructure(prevStructure => {
+            const updated = { ...prevStructure };
+            updated.Folders[currentFolder][data.file.id] = {
+              url: data.file.url || `https://drive.google.com/uc?export=view&id=${data.file.id}`,
+              id: data.file.id,
+              originalName: data.file.name || newFileName
+            };
+            return updated;
+          });
+        } else {
+          // Handle error case
+          setFolderStructure(prevStructure => {
+            const updated = { ...prevStructure };
+            delete updated.Folders[currentFolder][tempId];
+            return updated;
+          });
+          console.error("Error copying file:", data.message);
+        }
+      } catch (error) {
+        console.error("Error copying file to Google Drive:", error);
+      }
+    } 
+    // For other folders, we'll create a placeholder image
+    else {
+      // Show loading state first
+      setFolderStructure(prevStructure => {
+        const updated = { ...prevStructure };
+        updated.Folders[currentFolder][newId] = {
+          url: clipboard.item.url, // Temporary
+          id: newId,
+          originalName: `${newFileName} (preparing...)`,
+          isLoading: true
+        };
+        return updated;
+      });
+      
+      // For copied images, use a placeholder colored box as fallback
+      // This ensures something is always visible even if URL can't be displayed
+      setFolderStructure(prevStructure => {
+        const updated = { ...prevStructure };
+        
+        // Create a colored placeholder with the first letter
+        const firstLetter = newFileName.charAt(0).toUpperCase();
+        const color = getRandomColor();
+        
+        // Use a data URL with SVG for the placeholder
+        const svgPlaceholder = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+            <rect width="200" height="200" fill="${color}" />
+            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="white" font-size="80">
+              ${firstLetter}
+            </text>
+          </svg>
+        `;
+        
+        const dataUrl = `data:image/svg+xml;base64,${btoa(svgPlaceholder)}`;
+        
+        updated.Folders[currentFolder][newId] = {
+          url: dataUrl,
+          id: newId,
+          originalName: newFileName,
+          isPasted: true,
+          sourceUrl: clipboard.item.url // Keep original URL for reference
+        };
+        
+        // For cut operations, remove the original
+        if (clipboard.action === "cut") {
+          delete updated.Folders[clipboard.folder][clipboard.key];
+        }
+        
+        return updated;
+      });
+    }
+    
+    // Always clear clipboard after paste
     setClipboard({ action: "", folder: "", key: "", item: null });
   };
+
+  // Add this helper function to generate random colors
+  const getRandomColor = () => {
+    // Use a limited set of good-looking colors
+    const colors = [
+      "#3498db", // Blue
+      "#2ecc71", // Green
+      "#e74c3c", // Red
+      "#f39c12", // Orange
+      "#9b59b6", // Purple
+      "#1abc9c", // Turquoise
+      "#34495e", // Dark Blue
+      "#d35400"  // Dark Orange
+    ];
+    
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
 
   const openFileSelector = () => {
     fileInputRef.current.click();
@@ -444,35 +581,66 @@ export default function EquipmentSetupPage() {
 
   // Handle touch start events for long-press detection
   const handleTouchStart = (e, item, key) => {
-    // Clear any existing touch timer
-    if (touchTimer) clearTimeout(touchTimer);
+  // Don't start long-press detection if we're touching a button
+  if (e.target.closest('.mobile-actions') || e.target.closest('.mobile-menu-container > div > div')) {
+    return;
+  }
+
+  // Clear any existing touch timer
+  if (touchTimer) clearTimeout(touchTimer);
+
+  // Start a new timer for long press
+  const timer = setTimeout(() => {
+    // Calculate position for context menu
+    const touch = e.touches[0];
     
-    // Start a new timer for long press
-    const timer = setTimeout(() => {
-      // Calculate position for context menu
-      const touch = e.touches[0];
-      const rect = e.currentTarget.getBoundingClientRect();
-      
-      // Position the menu near the touch point but ensure it's within view
-      setContextMenu({
-        show: true,
-        x: Math.min(touch.clientX, window.innerWidth - 150), // Prevent menu from going off-screen
-        y: Math.min(touch.clientY, window.innerHeight - 200),
-        item: item,
-        key: key
-      });
-    }, 500); // 500ms long press
-    
-    setTouchTimer(timer);
+    setContextMenu({
+      show: true,
+      x: Math.min(touch.clientX, window.innerWidth - 150),
+      y: Math.min(touch.clientY, window.innerHeight - 200),
+      item: item,
+      key: key
+    });
+  }, 700); // Slightly longer threshold to allow taps to work better
+
+  setTouchTimer(timer);
   };
 
   // Handle touch end events
-  const handleTouchEnd = () => {
-    // Clear the timer if touch ends before the long press threshold
+  const handleTouchEnd = (e, item) => {
     if (touchTimer) {
       clearTimeout(touchTimer);
       setTouchTimer(null);
+      
+      const tapDuration = e.timeStamp - e.target.dataset.touchStartTime;
+      if (tapDuration < 500 && !contextMenu.show && !showItemActions) {
+        e.preventDefault();
+        
+        // Use the same URL formatting logic as handleImageClick
+        let imageUrl = item.url;
+        if (item.id && imageUrl.includes('drive.google.com')) {
+          imageUrl = `https://drive.google.com/uc?export=view&id=${item.id}`;
+        }
+        
+        // Reset image states
+        setImageLoaded(false);
+        setLoadError(false);
+        
+        setEnlargedImage({
+          show: true,
+          url: imageUrl,
+          name: item.originalName || 'Image',
+          isLoading: true
+        });
+      }
     }
+  };
+
+  // Updated touch start with better timing
+  const handleTouchStartWithTracking = (e, item, key) => {
+    // Store touch start time for tap detection
+    e.target.dataset.touchStartTime = e.timeStamp;
+    handleTouchStart(e, item, key);
   };
 
   // Toggle mobile action buttons
@@ -483,6 +651,49 @@ export default function EquipmentSetupPage() {
       setShowItemActions(key);
     }
   };
+
+  // Function to handle image click to enlarge
+  const handleImageClick = (e, image) => {
+    // Skip if clicking on buttons or action menu
+    if (e.target.closest('.mobile-actions') || 
+        e.target.closest('.mobile-menu-container > div > div') || 
+        contextMenu.show || 
+        showItemActions) {
+      return;
+    }
+    
+    e.stopPropagation();
+    
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      setTouchTimer(null);
+    }
+    
+    // Determine the correct URL to use
+    let imageUrl = image.url;
+    
+    // Special handling for Google Drive images - try a different approach
+    if (image.id && imageUrl.includes('drive.google.com')) {
+      // Format 1: Try the thumbnail URL first (more reliable but lower quality)
+      imageUrl = `https://drive.google.com/thumbnail?id=${image.id}&sz=w1000`;
+    }
+    
+    console.log("Opening image:", imageUrl); // Debug log
+    
+    // Reset image states when opening a new image
+    setImageLoaded(false);
+    setLoadError(false);
+    
+    setEnlargedImage({
+      show: true,
+      url: imageUrl,
+      name: image.originalName || 'Image',
+      isLoading: true,
+      id: image.id // Store ID for potential fallback options
+    });
+  };
+
+
 
   // Render context menu
   const renderContextMenu = () => {
@@ -539,6 +750,169 @@ export default function EquipmentSetupPage() {
       </div>
     );
   };
+
+  // Render enlarged image modal
+  const renderEnlargedImageModal = () => {
+    if (!enlargedImage.show) return null;
+    
+    // Handle image load error by trying alternative formats
+    const handleImageError = () => {
+      console.error("Error loading image, trying fallback");
+      setLoadError(true);
+      
+      // If we have an ID, we could try alternative URLs here
+      if (enlargedImage.id) {
+        console.log("Could try alternative URL formats here");
+        // We could set a different URL here if needed
+      }
+    };
+    
+    return (
+      <div 
+        id="enlarged-image-container"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001,
+          cursor: 'pointer'
+        }}
+        onClick={() => setEnlargedImage({ show: false, url: "", name: "" })}
+      >
+        <div 
+          id="enlarged-image-inner"
+          style={{
+            position: 'relative',
+            width: '90%',
+            maxWidth: '90vw', 
+            maxHeight: '85vh',
+            background: '#fff',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            cursor: 'default',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Close button */}
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1002,
+            background: 'rgba(255,255,255,0.7)',
+            borderRadius: '50%',
+            padding: '5px',
+            cursor: 'pointer'
+          }}
+          onClick={() => setEnlargedImage({ show: false, url: "", name: "" })}
+          >
+            <XCircle size={28} color="#333" />
+          </div>
+          
+          {/* Image container */}
+          <div style={{ 
+            padding: '20px', 
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '300px'
+          }}>
+            {/* Regular img tag for direct image viewing */}
+            {!loadError ? (
+              <img 
+                src={enlargedImage.url}
+                alt={enlargedImage.name}
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  display: imageLoaded ? 'block' : 'none' // Only show once loaded
+                }}
+                onLoad={() => {
+                  console.log("Image loaded successfully");
+                  setImageLoaded(true);
+                }}
+                onError={handleImageError}
+              />
+            ) : (
+              <div style={{
+                padding: '20px',
+                textAlign: 'center',
+                color: '#333'
+              }}>
+                {/* Display a simpler fallback when Google Drive image fails */}
+                <div style={{
+                  width: '200px',
+                  height: '200px',
+                  background: '#f0f0f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px auto',
+                  borderRadius: '8px'
+                }}>
+                  <Camera size={64} color="#999" />
+                </div>
+                <p>Image preview unavailable</p>
+                <p style={{fontSize: '0.9em', marginTop: '5px'}}>
+                  Try viewing this image in the Google Drive interface.
+                </p>
+              </div>
+            )}
+            
+            {/* Loading indicator */}
+            {!imageLoaded && !loadError && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '30px'
+              }}>
+                <div style={{ 
+                  border: '4px solid #f3f3f3',
+                  borderTop: '4px solid #3498db',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
+                  animation: 'spin 1s linear infinite',
+                  marginBottom: '15px'
+                }}></div>
+                <p>Loading image...</p>
+                <style jsx>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+              </div>
+            )}
+            
+            {/* Image caption */}
+            <h3 style={{ 
+              margin: '15px 0 0 0',
+              color: '#333',
+              fontWeight: 'normal',
+              fontSize: '16px'
+            }}>
+              {enlargedImage.name}
+            </h3>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   // Render content based on current folder
   const renderFolderContent = () => {
@@ -614,18 +988,66 @@ export default function EquipmentSetupPage() {
               boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
               background: "#fff",
             }}
-            onContextMenu={(e) => handleContextMenu(e, image, key)}
-            onTouchStart={(e) => handleTouchStart(e, image, key)}
-            onTouchEnd={handleTouchEnd}
+            onContextMenu={(e)     => handleContextMenu(e, image, key)}
+            onTouchStart={(e)       => handleTouchStartWithTracking(e, image, key)}
+            onTouchEnd={(e)         => handleTouchEnd(e, image)}
+            onClick={(e)            => handleImageClick(e, image)} 
             className="mobile-menu-container"
           >
-            <div style={{ height: "120px", position: "relative", cursor: "pointer" }}>
-              <Image
-                src={image.url}
-                alt={image.originalName || key}
-                fill
-                style={{ objectFit: "cover" }}
-              />
+
+            <div 
+              style={{ height: "120px", position: "relative", cursor: "pointer" }}
+              onClick={(e) => handleImageClick(e, image)}
+              className="image-container"
+            >
+            {image.isLoading ? (
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center", 
+                height: "100%", 
+                background: "#f5f5f5" 
+              }}>
+                {/* Loading spinner code - keep this unchanged */}
+                <div style={{ 
+                  border: "4px solid #f3f3f3", 
+                  borderTop: "4px solid #3498db", 
+                  borderRadius: "50%", 
+                  width: "30px", 
+                  height: "30px", 
+                  animation: "spin 1s linear infinite" 
+                }}></div>
+                <style jsx>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+              </div>
+            ) : (
+              // This is the new conditional rendering part
+              image.isPasted ? (
+                <img
+                  src={image.url}
+                  alt={image.originalName || key}
+                  style={{ 
+                    width: "100%", 
+                    height: "100%", 
+                    objectFit: "cover"
+                  }}
+                  onClick={(e) => handleImageClick(e, image)}
+                />
+              ) : (
+                // Regular Next.js Image for standard items
+                <Image
+                  src={image.url}
+                  alt={image.originalName || key}
+                  fill
+                  style={{ objectFit: "cover" }}
+                  onClick={(e) => handleImageClick(e, image)}
+                />
+              )
+            )}
               
               {/* Mobile action button */}
               {isMobile && (
@@ -664,6 +1086,7 @@ export default function EquipmentSetupPage() {
                   zIndex: 10,
                   padding: "5px"
                 }}>
+                  {/* Your mobile action menu items remain unchanged */}
                   <div 
                     style={{
                       padding: "8px",
@@ -738,6 +1161,8 @@ export default function EquipmentSetupPage() {
                 </div>
               )}
             </div>
+
+
             <div style={{ 
               padding: "8px", 
               overflow: "hidden", 
@@ -927,6 +1352,7 @@ export default function EquipmentSetupPage() {
           </button>
         </Link>
       </div>
+    {renderEnlargedImageModal()}
     </main>
   );
 }
