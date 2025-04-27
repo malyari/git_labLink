@@ -1,8 +1,8 @@
 "use client"; // Ensures this runs on the client side in Next.js
 
 import Link from "next/link";
-import { Home, MessageSquare, Send, X, Check } from "lucide-react";
-import { useState } from "react";
+import { Home, MessageSquare, Send, X, Check, Menu } from "lucide-react";
+import { useState, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction"; // Enables event editing
@@ -15,13 +15,35 @@ export default function CalendarPage() {
   const [messages, setMessages] = useState([]); // Stores chat messages
   const [newMessage, setNewMessage] = useState(""); // New user input
   const [selectedCalendar, setSelectedCalendar] = useState("fullcalendar");
+  const [sidebarOpen, setSidebarOpen] = useState(false); // For mobile sidebar toggle
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
 
+  // Track window width for responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      // Auto-open sidebar on larger screens
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 768;
 
   const calendarOptions = [
-  { label: "Google", value: "google",  color: "#DB4437" },
-  { label: "Outlook",value: "outlook", color: "#0078D4" },
-  { label: "Mac",    value: "mac",     color: "#FF3B30" },
-];
+    { label: "Google", value: "google", color: "#0078D4" },
+    { label: "Outlook", value: "outlook", color: "#0078D4" },
+    { label: "Mac", value: "mac", color: "#0078D4" },
+  ];
 
   // Function to adjust end date for FullCalendar
   const fixEndDate = (dateStr) => {
@@ -124,83 +146,191 @@ export default function CalendarPage() {
     setShowExperiment((prev) => !prev);
   };
 
-  return (
-    <main style={{ display: "flex", height: "100vh", padding: "20px" }}>
-      {/* Sidebar (Left Side) */}
-      <div style={{ width: "250px", padding: "20px", borderRight: "2px solid #ccc" }}>
-        <h3>📌 LabLink Calendar</h3>
-        <table style={{ width: "100%", borderCollapse: "collapse", cursor: "pointer" }}>
-          <tbody>
-            <tr onClick={toggleEquipment}>
-              <td style={{ width: "30px", height: "20px", border: `2px solid ${showEquipment ? "blue" : "lightgray"}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                {showEquipment && <Check size={20} color="blue" />}
-              </td>
-              <td style={{ paddingLeft: "10px" }}>Equipment </td>
-            </tr>
-            <tr onClick={toggleExperiment}>
-              <td style={{ width: "30px", height: "20px", border: `2px solid ${showExperiment ? "green" : "lightgray"}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                {showExperiment && <Check size={20} color="green" />}
-              </td>
-              <td style={{ paddingLeft: "10px" }}>Experiment </td>
-            </tr>
-          </tbody>
-        </table>
+  // Toggle sidebar for mobile view
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => !prev);
+  };
 
-        {/* --- Main Calendar chooser --- */}
-        <div style={{ height: "5rem" }} />
-        <h3>📌 Other Calendars</h3>
-        <table style={{ width: "100%", borderCollapse: "collapse", cursor: "pointer", marginBottom: "1rem", }}>
-          <tbody>
-            {calendarOptions.map(({ label, value, color }) => (
-              <tr
-                key={value}
-                onClick={() => {
-                  if (selectedCalendar === value) {
-                    setSelectedCalendar(null);
-                    alert(`Turning off ${label}`);
-                  } else {
-                    setSelectedCalendar(value);
-                    alert(`Switching to ${label}`);
-                  }
+  // Sidebar component
+  const Sidebar = () => (
+    <div 
+      style={{ 
+        width: isMobile ? "80%" : "250px",
+        height: isMobile ? "100vh" : "auto",
+        padding: "20px", 
+        borderRight: "2px solid #ccc",
+        position: isMobile ? "fixed" : "relative",
+        left: isMobile ? (sidebarOpen ? "0" : "-100%") : "0",
+        top: isMobile ? "0" : "auto",
+        background: "white",
+        zIndex: isMobile ? "1200" : "1",
+        transition: "left 0.3s ease",
+        overflowY: "auto"
+      }}
+    >
+      {isMobile && (
+        <button 
+          onClick={toggleSidebar}
+          style={{
+            position: "absolute",
+            right: "10px",
+            top: "10px",
+            background: "none",
+            border: "none",
+            fontSize: "24px",
+            cursor: "pointer"
+          }}
+        >
+          <X size={24} />
+        </button>
+      )}
+      
+      <h3 style={{ color: "black" }}>📌 LabLink Calendar</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse", cursor: "pointer" }}>
+        <tbody>
+          <tr onClick={toggleEquipment}>
+            <td style={{ width: "30px", height: "20px", border: `2px solid ${showEquipment ? "blue" : "black"}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              {showEquipment && <Check size={20} color="blue" />}
+            </td>
+            <td style={{ paddingLeft: "10px", color: "black" }}>Equipment </td>
+          </tr>
+          <tr onClick={toggleExperiment}>
+            <td style={{ width: "30px", height: "20px", border: `2px solid ${showExperiment ? "green" : "black"}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              {showExperiment && <Check size={20} color="green" />}
+            </td>
+            <td style={{ paddingLeft: "10px", color: "black" }}>Experiment </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* --- Main Calendar chooser --- */}
+      <div style={{ height: "5rem" }} />
+      <h3 style={{ color: "black" }}>📌 Other Calendars</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse", cursor: "pointer", marginBottom: "1rem" }}>
+        <tbody>
+          {calendarOptions.map(({ label, value, color }) => (
+            <tr
+              key={value}
+              onClick={() => {
+                if (selectedCalendar === value) {
+                  setSelectedCalendar(null);
+                  alert(`Turning off ${label} Calendar`);
+                } else {
+                  setSelectedCalendar(value);
+                  alert(`Switching to ${label} Calendar`);
+                }
+              }}
+            >
+              <td
+                style={{
+                  width: "30px",
+                  height: "20px",
+                  border: `2px solid ${
+                    selectedCalendar === value ? color : "black"
+                  }`,
+                  borderRadius: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <td
-                  style={{
-                    width: "30px",
-                    height: "20px",
-                    border: `2px solid ${
-                      selectedCalendar === value ? color : "lightgray"
-                    }`,
-                    borderRadius: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {selectedCalendar === value && (
-                    <Check size={16} color={color} />
-                  )}
-                </td>
-                <td style={{ paddingLeft: "10px" }}>{label}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                {selectedCalendar === value && (
+                  <Check size={16} color={color} />
+                )}
+              </td>
+              <td style={{ paddingLeft: "10px", color: "black" }}>{label}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
+  // Calculate responsive chat window dimensions
+  const getChatWindowStyle = () => {
+    return {
+      position: "fixed",
+      top: isMobile ? "auto" : "70px",
+      bottom: isMobile ? "70px" : "auto",
+      right: "20px",
+      width: isMobile ? "calc(100% - 40px)" : "350px",
+      height: isMobile ? "300px" : "400px",
+      background: "white",
+      border: "2px solid #ccc",
+      borderRadius: "8px",
+      display: "flex",
+      flexDirection: "column",
+      zIndex: 1000,
+    };
+  };
 
-      </div>
+  return (
+    <main style={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100vh", padding: isMobile ? "10px" : "20px", position: "relative" }}>
+      {/* Mobile Menu Button */}
+      {isMobile && (
+        <button
+          onClick={toggleSidebar}
+          style={{
+            position: "fixed",
+            top: "20px",
+            left: "20px",
+            zIndex: 1100,
+            background: "#007bff",
+            color: "white",
+            border: "none",
+            padding: "10px",
+            borderRadius: "50%",
+            cursor: "pointer",
+          }}
+        >
+          <Menu size={24} />
+        </button>
+      )}
 
+      {/* Sidebar */}
+      {(sidebarOpen || !isMobile) && <Sidebar />}
+
+      {/* Overlay for mobile when sidebar is open */}
+      {isMobile && sidebarOpen && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 1100
+          }}
+          onClick={toggleSidebar}
+        />
+      )}
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, textAlign: "center" }}>
-        {/* <h1>📅 Calendar Page</h1>
-        <p>Manage your experiments and equipment schedule here!</p> */}
-
+      <div style={{ 
+        flex: 1, 
+        textAlign: "center",
+        marginLeft: isMobile ? 0 : (sidebarOpen ? "20px" : 0),
+        marginTop: isMobile ? "60px" : 0,
+        transition: "margin-left 0.3s ease",
+        width: isMobile ? "100%" : "auto"
+      }}>
         {/* Calendar */}
-        <div style={{ maxWidth: "900px", margin: "auto" }}>
+        <div style={{ 
+          maxWidth: "900px", 
+          margin: "auto", 
+          padding: isMobile ? "10px 0" : 0,
+          overflowX: "auto" // Allow horizontal scrolling if needed on mobile
+        }}>
           <FullCalendar
             plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
+            initialView={isMobile ? "dayGridDay" : "dayGridMonth"} // Use day view on mobile
+            headerToolbar={{
+              left: 'prev,next today',
+              center: 'title',
+              right: isMobile ? 'dayGridDay,dayGridWeek' : 'dayGridMonth,dayGridWeek,dayGridDay'
+            }}
+            height={isMobile ? "auto" : undefined}
             events={events.filter(event => 
               (showEquipment && event.eventType === "equipment") ||
               (showExperiment && event.eventType === "experiment")
@@ -214,8 +344,14 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Floating AI Chat Button (Top Right) */}
-      <div style={{ position: "fixed", top: "20px", right: "20px", zIndex: 1100 }}>
+      {/* Floating AI Chat Button */}
+      <div style={{ 
+        position: "fixed", 
+        top: isMobile ? "auto" : "20px", 
+        bottom: isMobile ? "20px" : "auto",
+        right: "20px", 
+        zIndex: 1100 
+      }}>
         <button
           onClick={() => setIsChatOpen(!isChatOpen)}
           style={{
@@ -230,22 +366,10 @@ export default function CalendarPage() {
           {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}
         </button>
 
-        {/* AI Chat Window - Now Fully Functional */}
+        {/* AI Chat Window - Responsive */}
         {isChatOpen && (
           <div
-            style={{
-              position: "fixed",
-              top: "70px",
-              right: "20px",
-              width: "350px",
-              height: "400px",
-              background: "white",
-              border: "2px solid #ccc",
-              borderRadius: "8px",
-              display: "flex",
-              flexDirection: "column",
-              zIndex: 1000, // Ensure it appears above other elements
-            }}
+            style={getChatWindowStyle()}
             onClick={(e) => e.stopPropagation()} // Prevents click events from reaching the calendar
           >
             {/* Chat Header */}
@@ -265,7 +389,8 @@ export default function CalendarPage() {
                         borderRadius: "5px",
                         maxWidth: "80%",
                         color: "black",
-                        alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+                        marginLeft: msg.sender === "user" ? "auto" : "0",
+                        marginRight: msg.sender === "user" ? "0" : "auto",
                       }}
                     >
                       {msg.text}
@@ -302,10 +427,26 @@ export default function CalendarPage() {
       </div>
 
       {/* Home Button (Bottom Right) */}
-      <div style={{ position: "fixed", bottom: "20px", right: "20px" }}>
+      <div style={{ 
+        position: "fixed", 
+        bottom: "20px", 
+        left: isMobile ? "20px" : "auto", 
+        right: isMobile ? "auto" : "20px"
+      }}>
         <Link href="/">
-          <button style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: "24px", padding: "10px" }}>
-            <Home size={32} />
+          <button style={{ 
+            border: "none", 
+            background: "#007bff", 
+            color: "white",
+            cursor: "pointer", 
+            fontSize: "24px", 
+            padding: "10px",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}>
+            <Home size={24} />
           </button>
         </Link>
       </div>
