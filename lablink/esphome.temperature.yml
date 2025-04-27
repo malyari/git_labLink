@@ -1,0 +1,18 @@
+esphome:
+  name: ds18b20_logger
+  platform: ESP32   
+  board: esp32dev   
+
+
+logger:
+
+
+dallas:
+  - pin: GPIO4  
+
+# DS18B20 sensor config
+sensor:
+  - platform: dallas
+    name: "DS18B20 Temperature"
+    resolution: 12
+    update_interval: 5s
