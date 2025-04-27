@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ChevronLeft, MoreVertical, XCircle } from "lucide-react";
+import { Home, Camera, Folder, Edit, Trash, Copy, Scissors, X, Check, Menu, ChevronLeft, MoreVertical, XCircle, Plus, FolderPlus } from "lucide-react";
 import Image from "next/image";
 
 export default function EquipmentSetupPage() {
@@ -10,7 +10,7 @@ export default function EquipmentSetupPage() {
     Folders: {
       Equipment: {},
       Samples: {},
-      "Set-up": {},
+      SetUp: {},
     },
   });
 
@@ -27,6 +27,10 @@ export default function EquipmentSetupPage() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState({ show: false, url: "", name: "", isLoading: false, id: null});
+  const [addingFolder, setAddingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [folderContextMenu, setFolderContextMenu] = useState({ show: false, x: 0, y: 0, folderName: "" });
+  const newFolderInputRef = useRef(null);
 
 
   // Detect mobile devices
@@ -55,6 +59,59 @@ export default function EquipmentSetupPage() {
   const renderSidebar = () => {
     return (
       <div style={{ width: "100%" }}>
+        <div style={{ padding: "10px 15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0, color: "#333" }}>📁 Folders</h3>
+          <button
+            onClick={handleAddFolderClick}
+            style={{
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              color: "#007bff"
+            }}
+          >
+            <FolderPlus size={18} />
+          </button>
+        </div>
+        
+        {addingFolder && (
+          <div style={{ padding: "5px 15px 10px", marginBottom: "5px" }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <input
+                ref={newFolderInputRef}
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddFolder()}
+                placeholder="New folder name"
+                style={{
+                  flex: 1,
+                  padding: "6px 8px",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                  color: "black"
+                }}
+              />
+              <button
+                onClick={handleAddFolder}
+                style={{
+                  marginLeft: "5px",
+                  border: "none",
+                  background: "#007bff",
+                  color: "white",
+                  padding: "6px 10px",
+                  borderRadius: "4px",
+                  cursor: "pointer"
+                }}
+              >
+                <Check size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+        
         {Object.entries(folderStructure.Folders).map(([folderName, content]) => (
           <div
             key={folderName}
@@ -66,25 +123,31 @@ export default function EquipmentSetupPage() {
               color: "black",
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               borderLeft: currentFolder === folderName ? "3px solid #007bff" : "3px solid transparent",
             }}
-            onClick={() => {
-              setCurrentFolder(folderName);
-              // On mobile, hide sidebar after selection
-              if (isMobile) {
-                setSidebarVisible(false);
-              }
-            }}
+            onContextMenu={(e) => handleFolderContextMenu(e, folderName)}
           >
-            <Folder
-              size={20}
-              style={{ 
-                marginRight: "10px", 
-                fill: currentFolder === folderName ? "#007bff" : "darkorange", 
-                color: currentFolder === folderName ? "#007bff" : "darkorange" 
+            <div 
+              style={{ display: "flex", alignItems: "center" }}
+              onClick={() => {
+                setCurrentFolder(folderName);
+                // On mobile, hide sidebar after selection
+                if (isMobile) {
+                  setSidebarVisible(false);
+                }
               }}
-            />
-            {folderName}
+            >
+              <Folder
+                size={20}
+                style={{ 
+                  marginRight: "10px", 
+                  fill: currentFolder === folderName ? "#007bff" : "darkorange", 
+                  color: currentFolder === folderName ? "#007bff" : "darkorange" 
+                }}
+              />
+              {folderName}
+            </div>
           </div>
         ))}
       </div>
@@ -127,11 +190,45 @@ export default function EquipmentSetupPage() {
     }
   };
 
+  const fetchSamplesImages = async () => {
+  try {
+    const res = await fetch("/api/listSamples");
+    const data = await res.json();
+    if (data.files) {
+      const persistedImages = {};
+      data.files.forEach((file) => {
+        // Use the file ID as the key instead of the file name
+        persistedImages[file.id] = {
+          url: `https://drive.google.com/uc?export=view&id=${file.id}`,
+          id: file.id,
+          originalName: file.name || `image_${file.id}.jpeg`
+        };
+      });
+      setFolderStructure((prevStructure) => {
+        const updated = { ...prevStructure };
+        updated.Folders.Samples = persistedImages;
+        return updated;
+      });
+    }
+  } catch (error) {
+    console.error("Error fetching persisted samples images:", error);
+  }
+};
+
   useEffect(() => {
     if (currentFolder === "Equipment") {
       fetchPersistedImages();
+    } else if (currentFolder === "Samples") {
+      fetchSamplesImages();
     }
   }, [currentFolder]);
+
+
+  useEffect(() => {
+    if (addingFolder && newFolderInputRef.current) {
+      newFolderInputRef.current.focus();
+    }
+  }, [addingFolder]);
 
 
   useEffect(() => {
@@ -139,6 +236,10 @@ export default function EquipmentSetupPage() {
     const handleClickOutside = (e) => {
       if (contextMenu.show) {
         setContextMenu({ show: false, x: 0, y: 0, item: null, key: "" });
+      }
+
+      if (folderContextMenu.show) {
+        setFolderContextMenu({ show: false, x: 0, y: 0, folderName: "" });
       }
       
       // Only close the mobile actions if we clicked outside the item
@@ -150,6 +251,7 @@ export default function EquipmentSetupPage() {
         }
       }
     };
+
     
     // Close rename input when clicking outside and confirm the rename
     const handleClickOutsideRename = (e) => {
@@ -168,9 +270,20 @@ export default function EquipmentSetupPage() {
       }
     };
 
+    const handleClickOutsideNewFolder = (e) => {
+      if (addingFolder && newFolderInputRef.current && !newFolderInputRef.current.contains(e.target)) {
+        if (newFolderName.trim()) {
+          handleAddFolder();
+        } else {
+          setAddingFolder(false);
+        }
+      }
+    };
+
     window.addEventListener("click", handleClickOutside);
     window.addEventListener("click", handleClickOutsideRename);
     window.addEventListener("click", handleClickOutsideModal);
+    window.addEventListener("click", handleClickOutsideNewFolder);
     
     // Handle escape key for modal
     const handleEscKey = (e) => {
@@ -185,6 +298,7 @@ export default function EquipmentSetupPage() {
       window.removeEventListener("click", handleClickOutside);
       window.removeEventListener("click", handleClickOutsideRename);
       window.removeEventListener("click", handleClickOutsideModal);
+      window.removeEventListener("click", handleClickOutsideNewFolder);
       window.removeEventListener('keydown', handleEscKey);
     };
   }, [contextMenu.show, renaming.active, showItemActions, enlargedImage.show]);
@@ -262,7 +376,7 @@ export default function EquipmentSetupPage() {
         console.log("Uploaded file data:", data);
         
         // Remove the temporary item once we've refreshed from the server
-        if (currentFolder === "Equipment") {
+        if (currentFolder === "Equipment" || currentFolder === "Samples") {
           // Remove the temp item first to avoid duplicates
           setFolderStructure((prevStructure) => {
             const updated = { ...prevStructure };
@@ -271,7 +385,11 @@ export default function EquipmentSetupPage() {
           });
           
           // Then fetch the updated list from the server
-          fetchPersistedImages();
+          if (currentFolder === "Equipment") {
+            fetchPersistedImages();
+          } else if (currentFolder === "Samples") {
+            fetchSamplesImages();
+          }
         }
       } catch (error) {
         console.error("Error uploading file to Google Drive:", error);
@@ -286,7 +404,7 @@ export default function EquipmentSetupPage() {
       // Close the context menu
       setContextMenu({ show: false, x: 0, y: 0, item: null, key: "" });
       
-      if (currentFolder === "Equipment" && image.id) {
+      if ((currentFolder === "Equipment" || currentFolder === "Samples") && image.id) {
         try {
           const res = await fetch("/api/deleteFile", {
             method: "DELETE",
@@ -305,7 +423,11 @@ export default function EquipmentSetupPage() {
           
           // Refresh from API after a short delay
           setTimeout(() => {
-            fetchPersistedImages();
+            if (currentFolder === "Equipment") {
+              fetchPersistedImages();
+            } else if (currentFolder === "Samples") {
+              fetchSamplesImages();
+            }
           }, 300);
         } catch (error) {
           console.error("Error deleting file from Google Drive:", error);
@@ -325,6 +447,7 @@ export default function EquipmentSetupPage() {
       }
     }
   };
+
   
   const handleRenameStart = (key, originalName) => {
     setRenaming({
@@ -382,6 +505,69 @@ export default function EquipmentSetupPage() {
     // Reset renaming state
     setRenaming({ active: false, key: "", value: "" });
   };
+
+
+  const handleAddFolderClick = () => {
+    setAddingFolder(true);
+    setNewFolderName("");
+  };
+
+  const handleAddFolder = () => {
+    const trimmedName = newFolderName.trim();
+    if (trimmedName) {
+      // Check if folder name already exists before updating
+      if (folderStructure.Folders[trimmedName]) {
+        alert(`Folder "${trimmedName}" already exists.`);
+        return;
+      }
+      
+      setFolderStructure(prevStructure => {
+        const updated = { ...prevStructure };
+        // Add new folder with empty content
+        updated.Folders[trimmedName] = {};
+        return updated;
+      });
+      setAddingFolder(false);
+      setNewFolderName("");
+    }
+  };
+
+  const handleFolderContextMenu = (e, folderName) => {
+    e.preventDefault();
+    setFolderContextMenu({
+      show: true,
+      x: e.pageX,
+      y: e.pageY,
+      folderName: folderName
+    });
+  };
+
+  const handleDeleteFolder = (folderName) => {
+    if (Object.keys(folderStructure.Folders).length <= 1) {
+      alert("Cannot delete the last folder.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete the folder "${folderName}" and all its contents?`);
+    if (confirmDelete) {
+      setFolderStructure(prevStructure => {
+        const updated = { ...prevStructure };
+        delete updated.Folders[folderName];
+        return updated;
+      });
+      
+      // If we deleted the current folder, switch to the first available folder
+      if (currentFolder === folderName) {
+        const remainingFolders = Object.keys(folderStructure.Folders).filter(f => f !== folderName);
+        if (remainingFolders.length > 0) {
+          setCurrentFolder(remainingFolders[0]);
+        }
+      }
+      
+      setFolderContextMenu({ show: false, x: 0, y: 0, folderName: "" });
+    }
+  };
+
   
   const handleCopyImage = (key, item) => {
     console.log("Copying to clipboard:", item);
@@ -431,8 +617,8 @@ export default function EquipmentSetupPage() {
     // Generate a new ID
     const newId = `copy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // If we're pasting to Equipment folder and the item has an ID (it's in Google Drive)
-    if (currentFolder === "Equipment" && clipboard.item.id) {
+    // If we're pasting to Equipment or Samples folder and the item has an ID (it's in Google Drive)
+    if ((currentFolder === "Equipment" || currentFolder === "Samples") && clipboard.item.id) {
       try {
         // First show a temporary copy with loading indicator
         const tempId = `temp_${Date.now()}`;
@@ -453,7 +639,8 @@ export default function EquipmentSetupPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             fileId: clipboard.item.id,
-            newName: newFileName 
+            newName: newFileName,
+            targetFolder: currentFolder // Pass the target folder to the API
           }),
         });
         
@@ -545,6 +732,7 @@ export default function EquipmentSetupPage() {
     // Always clear clipboard after paste
     setClipboard({ action: "", folder: "", key: "", item: null });
   };
+
 
   // Add this helper function to generate random colors
   const getRandomColor = () => {
@@ -694,7 +882,6 @@ export default function EquipmentSetupPage() {
   };
 
 
-
   // Render context menu
   const renderContextMenu = () => {
     if (!contextMenu.show) return null;
@@ -753,161 +940,198 @@ export default function EquipmentSetupPage() {
 
   // Render enlarged image modal
   const renderEnlargedImageModal = () => {
-    if (!enlargedImage.show) return null;
-    
-    // Handle image load error by trying alternative formats
-    const handleImageError = () => {
-      console.error("Error loading image, trying fallback");
-      setLoadError(true);
+      if (!enlargedImage.show) return null;
       
-      // If we have an ID, we could try alternative URLs here
-      if (enlargedImage.id) {
-        console.log("Could try alternative URL formats here");
-        // We could set a different URL here if needed
-      }
-    };
-    
-    return (
-      <div 
-        id="enlarged-image-container"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1001,
-          cursor: 'pointer'
-        }}
-        onClick={() => setEnlargedImage({ show: false, url: "", name: "" })}
-      >
+      // Handle image load error by trying alternative formats
+      const handleImageError = () => {
+            console.error("Error loading image, trying fallback");
+            setLoadError(true);
+            
+            // If we have an ID, we could try alternative URLs here
+            if (enlargedImage.id) {
+              console.log("Could try alternative URL formats here");
+              // We could set a different URL here if needed
+            }
+          };
+      
+      return (
         <div 
-          id="enlarged-image-inner"
+          id="enlarged-image-container"
           style={{
-            position: 'relative',
-            width: '90%',
-            maxWidth: '90vw', 
-            maxHeight: '85vh',
-            background: '#fff',
-            borderRadius: '8px',
-            overflow: 'hidden',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            cursor: 'default',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0,0,0,0.8)',
             display: 'flex',
-            flexDirection: 'column'
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          {/* Close button */}
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            zIndex: 1002,
-            background: 'rgba(255,255,255,0.7)',
-            borderRadius: '50%',
-            padding: '5px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
             cursor: 'pointer'
           }}
           onClick={() => setEnlargedImage({ show: false, url: "", name: "" })}
+        >
+          <div 
+            id="enlarged-image-inner"
+            style={{
+              position: 'relative',
+              width: '90%',
+              maxWidth: '90vw', 
+              maxHeight: '85vh',
+              background: '#fff',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              cursor: 'default',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={e => e.stopPropagation()}
           >
-            <XCircle size={28} color="#333" />
-          </div>
-          
-          {/* Image container */}
-          <div style={{ 
-            padding: '20px', 
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '300px'
-          }}>
-            {/* Regular img tag for direct image viewing */}
-            {!loadError ? (
-              <img 
-                src={enlargedImage.url}
-                alt={enlargedImage.name}
-                style={{ 
-                  maxWidth: '100%', 
-                  maxHeight: '70vh',
-                  objectFit: 'contain',
-                  display: imageLoaded ? 'block' : 'none' // Only show once loaded
-                }}
-                onLoad={() => {
-                  console.log("Image loaded successfully");
-                  setImageLoaded(true);
-                }}
-                onError={handleImageError}
-              />
-            ) : (
-              <div style={{
-                padding: '20px',
-                textAlign: 'center',
-                color: '#333'
-              }}>
-                {/* Display a simpler fallback when Google Drive image fails */}
+            {/* Close button */}
+            <div style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              zIndex: 1002,
+              background: 'rgba(255,255,255,0.7)',
+              borderRadius: '50%',
+              padding: '5px',
+              cursor: 'pointer'
+            }}
+            onClick={() => setEnlargedImage({ show: false, url: "", name: "" })}
+            >
+              <XCircle size={28} color="#333" />
+            </div>
+            
+            {/* Image container */}
+            <div style={{ 
+              padding: '20px', 
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '300px'
+            }}>
+              {/* Regular img tag for direct image viewing */}
+              {!loadError ? (
+                <img 
+                  src={enlargedImage.url}
+                  alt={enlargedImage.name}
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '70vh',
+                    objectFit: 'contain',
+                    display: imageLoaded ? 'block' : 'none' // Only show once loaded
+                  }}
+                  onLoad={() => {
+                    console.log("Image loaded successfully");
+                    setImageLoaded(true);
+                  }}
+                  onError={handleImageError}
+                />
+              ) : (
                 <div style={{
-                  width: '200px',
-                  height: '200px',
-                  background: '#f0f0f0',
+                  padding: '20px',
+                  textAlign: 'center',
+                  color: '#333'
+                }}>
+                  {/* Display a simpler fallback when Google Drive image fails */}
+                  <div style={{
+                    width: '200px',
+                    height: '200px',
+                    background: '#f0f0f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 20px auto',
+                    borderRadius: '8px'
+                  }}>
+                    <Camera size={64} color="#999" />
+                  </div>
+                  <p>Image preview unavailable</p>
+                  <p style={{fontSize: '0.9em', marginTop: '5px'}}>
+                    Try viewing this image in the Google Drive interface.
+                  </p>
+                </div>
+              )}
+              
+              {/* Loading indicator */}
+              {!imageLoaded && !loadError && (
+                <div style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 20px auto',
-                  borderRadius: '8px'
+                  padding: '30px'
                 }}>
-                  <Camera size={64} color="#999" />
+                  <div style={{ 
+                    border: '4px solid #f3f3f3',
+                    borderTop: '4px solid #3498db',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    animation: 'spin 1s linear infinite',
+                    marginBottom: '15px'
+                  }}></div>
+                  <p>Loading image...</p>
+                  <style jsx>{`
+                    @keyframes spin {
+                      0% { transform: rotate(0deg); }
+                      100% { transform: rotate(360deg); }
+                    }
+                  `}</style>
                 </div>
-                <p>Image preview unavailable</p>
-                <p style={{fontSize: '0.9em', marginTop: '5px'}}>
-                  Try viewing this image in the Google Drive interface.
-                </p>
-              </div>
-            )}
-            
-            {/* Loading indicator */}
-            {!imageLoaded && !loadError && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '30px'
+              )}
+              
+              {/* Image caption */}
+              <h3 style={{ 
+                margin: '15px 0 0 0',
+                color: '#333',
+                fontWeight: 'normal',
+                fontSize: '16px'
               }}>
-                <div style={{ 
-                  border: '4px solid #f3f3f3',
-                  borderTop: '4px solid #3498db',
-                  borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
-                  animation: 'spin 1s linear infinite',
-                  marginBottom: '15px'
-                }}></div>
-                <p>Loading image...</p>
-                <style jsx>{`
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                  }
-                `}</style>
-              </div>
-            )}
-            
-            {/* Image caption */}
-            <h3 style={{ 
-              margin: '15px 0 0 0',
-              color: '#333',
-              fontWeight: 'normal',
-              fontSize: '16px'
-            }}>
-              {enlargedImage.name}
-            </h3>
+                {enlargedImage.name}
+              </h3>
+            </div>
           </div>
+        </div>
+      );
+    };
+
+  const renderFolderContextMenu = () => {
+    if (!folderContextMenu.show) return null;
+    
+    const menuStyles = {
+      position: 'fixed',
+      top: `${folderContextMenu.y}px`,
+      left: `${folderContextMenu.x}px`,
+      background: 'white',
+      border: '1px solid #ccc',
+      borderRadius: '4px',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+      zIndex: 1000,
+      minWidth: '120px'
+    };
+    
+    const menuItemStyles = {
+      padding: '8px 12px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      color: '#333',
+      transition: 'background 0.2s'
+    };
+    
+    return (
+      <div style={menuStyles} onClick={e => e.stopPropagation()}>
+        <div 
+          style={{ ...menuItemStyles, color: 'red' }}
+          onClick={() => handleDeleteFolder(folderContextMenu.folderName)}
+        >
+          <Trash size={14} /> Delete Folder
         </div>
       </div>
     );
@@ -1353,6 +1577,7 @@ export default function EquipmentSetupPage() {
         </Link>
       </div>
     {renderEnlargedImageModal()}
+    {renderFolderContextMenu()}
     </main>
   );
 }

@@ -12,7 +12,7 @@ export async function GET(request) {
 
     const drive = google.drive({ version: "v3", auth });
     // Replace with your actual Equipment folder ID:
-    const folderId = "1UDXRUKos519IxqgtNjI7k8VSsikZA6-d";
+    const folderId = "1HHpcUrSwJKNRLclQLPhcN-WllohzgrGw";
 
     const response = await drive.files.list({
       q: `'${folderId}' in parents and mimeType contains 'image/'`,

@@ -30,8 +30,10 @@ export async function POST(request) {
 
     // Map folder names to Google Drive folder IDs
     const folderMapping = {
-      Equipment: '1UDXRUKos519IxqgtNjI7k8VSsikZA6-d', // Replace with the actual Equipment folder ID
-      // Add additional mappings if needed
+      Equipment: '1UDXRUKos519IxqgtNjI7k8VSsikZA6-d', // Equipment folder ID
+      Samples: '10YvG1tGFDKpa-Q5gi_8mFS8xAhLfF_Tv', // Samples folder ID from env variable
+      // You can also hardcode the Samples folder ID if preferred
+      // Samples: 'your-samples-folder-id-here',
     };
 
     // Build the request body
@@ -43,6 +45,15 @@ export async function POST(request) {
     // If a valid folder is provided, include it as the parent folder
     if (folder && folderMapping[folder]) {
       requestBody.parents = [folderMapping[folder]];
+    } else {
+      // If no valid folder is provided, return an error
+      return new Response(
+        JSON.stringify({ 
+          message: 'Invalid folder specified',
+          validFolders: Object.keys(folderMapping)
+        }),
+        { status: 400 }
+      );
     }
 
     // Create the file on Google Drive
@@ -55,7 +66,7 @@ export async function POST(request) {
     });
 
     const fileId = createResponse.data.id;
-    console.log("File created with ID:", fileId);
+    console.log(`File created with ID: ${fileId} in folder: ${folder}`);
 
     // Update file permissions so anyone with the link can view it
     await drive.permissions.create({
@@ -69,13 +80,15 @@ export async function POST(request) {
     // Get the file metadata to retrieve the web view link
     const fileData = await drive.files.get({
       fileId: fileId,
-      fields: 'id, webViewLink',
+      fields: 'id, webViewLink, name',
     });
 
     return new Response(
       JSON.stringify({
         fileId: fileData.data.id,
         webViewLink: fileData.data.webViewLink,
+        name: fileData.data.name,
+        folder: folder
       }),
       { status: 200 }
     );
