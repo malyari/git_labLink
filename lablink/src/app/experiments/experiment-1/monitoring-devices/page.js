@@ -10,19 +10,25 @@ export default function MonitoringDevicesPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [devices, setDevices] = useState([
-    { 
-      id: 1, 
-      name: "Temperature Sensor A", 
-      status: "Online", 
-      lastUpdated: "2025-04-27 09:30", 
-      manuals: [], 
-      readings: [
-        { timestamp: "09:00", value: "22.5°C" },
-        { timestamp: "09:15", value: "22.7°C" },
-        { timestamp: "09:30", value: "22.6°C" },
-      ]
+    {
+      id: 1,
+      name: "Temperature Sensor A",
+      status: "Online",
+      lastUpdated: new Date().toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+
+      }),
+      manuals: [],
+      readings: []
     }
   ]);
+
+
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [newDeviceName, setNewDeviceName] = useState("");
   const [showAddDeviceForm, setShowAddDeviceForm] = useState(false);
@@ -52,10 +58,72 @@ export default function MonitoringDevicesPage() {
     setActiveTab("status");
   };
 
+  const getHumanReadableDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
+  useEffect(() => {
+    const fetchTemperatureData = async () => {
+      try {
+        const response = await fetch("/api/temperature");
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json();
+        const updatedDevices = devices.map(device => {
+          const existingTimestamps = new Set(device.readings.map(reading => reading.timestamp));
+
+          if (device.id === selectedDevice.id) {
+            return {
+              ...device,
+              lastUpdated: getHumanReadableDate(new Date()),
+              readings: [
+                ...device.readings,
+                ...data
+                  .filter(d => {
+                    const newTimestamp = getHumanReadableDate(d.timestamp);
+                    return !existingTimestamps.has(newTimestamp);
+
+                  }).map(d => ({
+                    timestamp: getHumanReadableDate(d.timestamp),
+                    value: `${d.temperature_f}°F`,
+                  })),
+              ]
+            };
+          }
+          return device;
+        });
+
+        setDevices(updatedDevices);
+        setSelectedDevice(updatedDevices.find(d => d.id === selectedDevice.id));
+      } catch (error) {
+        console.error("Error fetching temperature data:", error);
+      }
+    };
+
+    const interval = setInterval(() => {
+      if (selectedDevice) {
+        fetchTemperatureData();
+      }
+    }, 6000);
+
+    return () => clearInterval(interval);
+
+  }, [selectedDevice]);
+
   // Add new device
   const handleAddDevice = () => {
     if (newDeviceName.trim() === "") return;
-    
+
     const newDevice = {
       id: Date.now(),
       name: newDeviceName,
@@ -64,7 +132,7 @@ export default function MonitoringDevicesPage() {
       manuals: [],
       readings: []
     };
-    
+
     setDevices([...devices, newDevice]);
     setNewDeviceName("");
     setShowAddDeviceForm(false);
@@ -74,7 +142,7 @@ export default function MonitoringDevicesPage() {
   const handleDeleteDevice = (deviceId) => {
     const updatedDevices = devices.filter(device => device.id !== deviceId);
     setDevices(updatedDevices);
-    
+
     if (selectedDevice && selectedDevice.id === deviceId) {
       setSelectedDevice(null);
     }
@@ -85,7 +153,7 @@ export default function MonitoringDevicesPage() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      
+
       // Set file name in input if not already set
       if (fileUploadName === "") {
         setFileUploadName(file.name);
@@ -99,7 +167,7 @@ export default function MonitoringDevicesPage() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       setSelectedFile(file);
-      
+
       // Set file name in input if not already set
       if (fileUploadName === "") {
         setFileUploadName(file.name);
@@ -120,18 +188,18 @@ export default function MonitoringDevicesPage() {
   // Handle file upload - Fixed version
   const handleFileUpload = () => {
     if (!selectedDevice) return;
-    
+
     // If we don't have a file selected yet, open the file browser instead of uploading
     if (!selectedFile) {
       triggerFileInput();
       return;
     }
-    
+
     const fileName = fileUploadName.trim() !== "" ? fileUploadName : selectedFile.name;
-    
+
     // Create file URL for the selected file
     const fileUrl = URL.createObjectURL(selectedFile);
-    
+
     const updatedDevices = devices.map(device => {
       if (device.id === selectedDevice.id) {
         return {
@@ -144,15 +212,16 @@ export default function MonitoringDevicesPage() {
       }
       return device;
     });
-    
+
     setDevices(updatedDevices);
     setSelectedDevice(updatedDevices.find(d => d.id === selectedDevice.id));
     setFileUploadName("");
     setSelectedFile(null);
-    
+
     // Show success message
     alert(`File "${fileName}" uploaded successfully!`);
   };
+
 
   return (
     <main
@@ -164,34 +233,34 @@ export default function MonitoringDevicesPage() {
       }}
     >
       {/* Breadcrumb Navigation (Top-left) */}
-      <div style={{ 
-        position: "absolute", 
-        top: "20px", 
-        left: "20px", 
-        display: "flex", 
-        alignItems: "center", 
+      <div style={{
+        position: "absolute",
+        top: "20px",
+        left: "20px",
+        display: "flex",
+        alignItems: "center",
         gap: "8px",
         fontSize: "16px",
         zIndex: 10
       }}>
-        <Link href="/" style={{ 
-          color: "var(--text-color, currentColor)", 
-          display: "flex", 
+        <Link href="/" style={{
+          color: "var(--text-color, currentColor)",
+          display: "flex",
           alignItems: "center",
           textDecoration: "none"
         }}>
           <Home size={20} />
         </Link>
         <span style={{ color: "var(--separator-color, #666)" }}>/</span>
-        <Link href="/experiments" style={{ 
-          color: "var(--text-color, currentColor)", 
+        <Link href="/experiments" style={{
+          color: "var(--text-color, currentColor)",
           textDecoration: "none"
         }}>
           Experiments
         </Link>
         <span style={{ color: "var(--separator-color, #666)" }}>/</span>
-        <Link href="/experiments/experiment-1" style={{ 
-          color: "var(--text-color, currentColor)", 
+        <Link href="/experiments/experiment-1" style={{
+          color: "var(--text-color, currentColor)",
           textDecoration: "none"
         }}>
           Experiment 1
@@ -201,10 +270,10 @@ export default function MonitoringDevicesPage() {
       </div>
 
       {/* Main content area */}
-      <div style={{ 
-        display: "flex", 
+      <div style={{
+        display: "flex",
         flexDirection: "column",
-        height: "80vh", 
+        height: "80vh",
         margin: "90px auto 10px auto",
         border: "2px solid #ccc",
         borderRadius: "8px",
@@ -214,30 +283,30 @@ export default function MonitoringDevicesPage() {
         width: "100%",
         position: "relative"
       }}>
-        
+
         <div style={{ display: "flex", height: "calc(100% - 70px)", overflow: "hidden" }}>
           {/* Device List Sidebar */}
-          <div style={{ 
-            width: "300px", 
-            borderRight: "1px solid #ccc", 
+          <div style={{
+            width: "300px",
+            borderRight: "1px solid #ccc",
             padding: "10px",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden"
           }}>
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between", 
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
               alignItems: "center",
               marginBottom: "10px"
             }}>
               <h3 style={{ margin: 0, color: "#333" }}>Devices</h3>
-              <button 
+              <button
                 onClick={() => setShowAddDeviceForm(!showAddDeviceForm)}
-                style={{ 
-                  background: "#28a745", 
-                  color: "white", 
-                  border: "none", 
+                style={{
+                  background: "#28a745",
+                  color: "white",
+                  border: "none",
                   borderRadius: "4px",
                   padding: "6px",
                   cursor: "pointer",
@@ -248,23 +317,23 @@ export default function MonitoringDevicesPage() {
                 <Plus size={16} />
               </button>
             </div>
-            
+
             {/* Add Device Form */}
             {showAddDeviceForm && (
-              <div style={{ 
+              <div style={{
                 padding: "10px",
                 marginBottom: "10px",
                 background: "#f0f0f0",
                 borderRadius: "4px"
               }}>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newDeviceName}
                   onChange={(e) => setNewDeviceName(e.target.value)}
                   placeholder="Enter device name"
-                  style={{ 
-                    width: "100%", 
-                    padding: "8px", 
+                  style={{
+                    width: "100%",
+                    padding: "8px",
                     marginBottom: "8px",
                     borderRadius: "4px",
                     border: "1px solid #ccc",
@@ -272,12 +341,12 @@ export default function MonitoringDevicesPage() {
                   }}
                 />
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <button 
+                  <button
                     onClick={handleAddDevice}
-                    style={{ 
-                      background: "#28a745", 
-                      color: "white", 
-                      border: "none", 
+                    style={{
+                      background: "#28a745",
+                      color: "white",
+                      border: "none",
                       borderRadius: "4px",
                       padding: "8px 12px",
                       cursor: "pointer"
@@ -285,12 +354,12 @@ export default function MonitoringDevicesPage() {
                   >
                     Add
                   </button>
-                  <button 
+                  <button
                     onClick={() => setShowAddDeviceForm(false)}
-                    style={{ 
-                      background: "#6c757d", 
-                      color: "white", 
-                      border: "none", 
+                    style={{
+                      background: "#6c757d",
+                      color: "white",
+                      border: "none",
                       borderRadius: "4px",
                       padding: "8px 12px",
                       cursor: "pointer"
@@ -301,14 +370,14 @@ export default function MonitoringDevicesPage() {
                 </div>
               </div>
             )}
-            
+
             {/* Device List */}
             <div style={{ overflowY: "auto", flex: 1 }}>
               {devices.length === 0 ? (
                 <p style={{ color: "#666", textAlign: "center" }}>No devices added yet</p>
               ) : (
                 devices.map(device => (
-                  <div 
+                  <div
                     key={device.id}
                     onClick={() => handleSelectDevice(device)}
                     style={{
@@ -325,16 +394,16 @@ export default function MonitoringDevicesPage() {
                   >
                     <div style={{ textAlign: "left" }}>
                       <div style={{ fontWeight: "bold", marginBottom: "4px", color: "#000000" }}>{device.name}</div>
-                      <div style={{ 
-                        fontSize: "12px", 
-                        display: "flex", 
+                      <div style={{
+                        fontSize: "12px",
+                        display: "flex",
                         alignItems: "center",
                         color: device.status === "Online" ? "#28a745" : "#dc3545"
                       }}>
-                        <span style={{ 
-                          height: "8px", 
-                          width: "8px", 
-                          borderRadius: "50%", 
+                        <span style={{
+                          height: "8px",
+                          width: "8px",
+                          borderRadius: "50%",
                           background: device.status === "Online" ? "#28a745" : "#dc3545",
                           display: "inline-block",
                           marginRight: "5px"
@@ -364,15 +433,15 @@ export default function MonitoringDevicesPage() {
               )}
             </div>
           </div>
-          
+
           {/* Device Details Area */}
           <div style={{ flex: 1, padding: "15px", display: "flex", flexDirection: "column" }}>
             {selectedDevice ? (
               <>
                 {/* Device Header */}
-                <div style={{ 
-                  display: "flex", 
-                  justifyContent: "space-between", 
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
                   marginBottom: "15px"
                 }}>
@@ -381,15 +450,15 @@ export default function MonitoringDevicesPage() {
                     Last Updated: {selectedDevice.lastUpdated}
                   </div>
                 </div>
-                
+
                 {/* Tabs */}
-                <div style={{ 
-                  display: "flex", 
-                  borderBottom: "1px solid #ccc", 
-                  marginBottom: "15px" 
+                <div style={{
+                  display: "flex",
+                  borderBottom: "1px solid #ccc",
+                  marginBottom: "15px"
                 }}>
-                  <button 
-                    onClick={() => setActiveTab("status")} 
+                  <button
+                    onClick={() => setActiveTab("status")}
                     style={{
                       background: "transparent",
                       border: "none",
@@ -405,8 +474,8 @@ export default function MonitoringDevicesPage() {
                       Status
                     </div>
                   </button>
-                  <button 
-                    onClick={() => setActiveTab("manuals")} 
+                  <button
+                    onClick={() => setActiveTab("manuals")}
                     style={{
                       background: "transparent",
                       border: "none",
@@ -423,25 +492,25 @@ export default function MonitoringDevicesPage() {
                     </div>
                   </button>
                 </div>
-                
+
                 {/* Tab Content */}
                 <div style={{ flex: 1, overflow: "auto" }}>
                   {activeTab === "status" && (
-                    <div>
-                      <div style={{ 
-                        padding: "15px", 
-                        background: "#fff", 
-                        borderRadius: "6px", 
+                    <div className="status-tab">
+                      <div style={{
+                        padding: "15px",
+                        background: "#fff",
+                        borderRadius: "6px",
                         border: "1px solid #ddd",
                         marginBottom: "15px"
                       }}>
                         <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Current Status</h4>
-                        <div style={{ 
-                          display: "flex", 
-                          alignItems: "center", 
-                          justifyContent: "center", 
-                          height: "100px", 
-                          background: "#f5f5f5", 
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          height: "100px",
+                          background: "#f5f5f5",
                           borderRadius: "4px",
                           fontSize: "24px",
                           color: selectedDevice.status === "Online" ? "#28a745" : "#dc3545"
@@ -449,12 +518,12 @@ export default function MonitoringDevicesPage() {
                           {selectedDevice.status}
                         </div>
                       </div>
-                      
-                      <div style={{ 
-                        padding: "15px", 
-                        background: "#fff", 
-                        borderRadius: "6px", 
-                        border: "1px solid #ddd" 
+
+                      <div style={{
+                        padding: "15px",
+                        background: "#fff",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd"
                       }}>
                         <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Recent Readings</h4>
                         {selectedDevice.readings && selectedDevice.readings.length > 0 ? (
@@ -468,7 +537,7 @@ export default function MonitoringDevicesPage() {
                             <tbody>
                               {selectedDevice.readings.map((reading, index) => (
                                 <tr key={index}>
-                                  <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "left" }}>{reading.timestamp}</td>
+                                  <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "left", color: "#000000" }}>{reading.timestamp}</td>
                                   <td style={{ padding: "8px", borderBottom: "1px solid #eee", textAlign: "right", color: "#000000" }}>{reading.value}</td>
                                 </tr>
                               ))}
@@ -480,25 +549,25 @@ export default function MonitoringDevicesPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {activeTab === "manuals" && (
                     <div>
-                      <div style={{ 
-                        padding: "15px", 
-                        background: "#fff", 
-                        borderRadius: "6px", 
+                      <div style={{
+                        padding: "15px",
+                        background: "#fff",
+                        borderRadius: "6px",
                         border: "1px solid #ddd",
                         marginBottom: "15px"
                       }}>
                         <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Uploaded Manuals</h4>
                         {selectedDevice.manuals && selectedDevice.manuals.length > 0 ? (
-                          <ul style={{ 
-                            listStyle: "none", 
-                            padding: 0, 
-                            margin: 0 
+                          <ul style={{
+                            listStyle: "none",
+                            padding: 0,
+                            margin: 0
                           }}>
                             {selectedDevice.manuals.map((manual, index) => (
-                              <li 
+                              <li
                                 key={index}
                                 style={{
                                   padding: "10px",
@@ -514,13 +583,13 @@ export default function MonitoringDevicesPage() {
                                 <span style={{ color: "#000000" }}>
                                   {typeof manual === 'string' ? manual : manual.name}
                                 </span>
-                                <div style={{ 
+                                <div style={{
                                   marginLeft: "auto",
                                   display: "flex",
-                                  gap: "10px" 
+                                  gap: "10px"
                                 }}>
                                   {manual.url && (
-                                    <a 
+                                    <a
                                       href={manual.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -571,34 +640,34 @@ export default function MonitoringDevicesPage() {
                           <p style={{ color: "#666", textAlign: "center" }}>No manuals uploaded</p>
                         )}
                       </div>
-                      
-                      <div style={{ 
-                        padding: "15px", 
-                        background: "#fff", 
-                        borderRadius: "6px", 
-                        border: "1px solid #ddd" 
+
+                      <div style={{
+                        padding: "15px",
+                        background: "#fff",
+                        borderRadius: "6px",
+                        border: "1px solid #ddd"
                       }}>
                         <h4 style={{ margin: "0 0 10px 0", color: "#333" }}>Upload Manual</h4>
                         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={fileUploadName}
                             onChange={(e) => setFileUploadName(e.target.value)}
                             placeholder="Enter file name (e.g., manual.pdf)"
-                            style={{ 
+                            style={{
                               flex: 1,
-                              padding: "8px", 
+                              padding: "8px",
                               borderRadius: "4px",
                               border: "1px solid #ccc",
                               color: "#000000"
                             }}
                           />
-                          <button 
+                          <button
                             onClick={handleFileUpload}
-                            style={{ 
-                              background: "#007bff", 
-                              color: "white", 
-                              border: "none", 
+                            style={{
+                              background: "#007bff",
+                              color: "white",
+                              border: "none",
                               borderRadius: "4px",
                               padding: "8px 12px",
                               cursor: "pointer",
@@ -611,21 +680,21 @@ export default function MonitoringDevicesPage() {
                             Upload
                           </button>
                         </div>
-                        
+
                         {/* Hidden file input */}
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           ref={fileInputRef}
                           onChange={handleFileChange}
                           style={{ display: "none" }}
                         />
-                        
-                        <div 
-                          style={{ 
-                            marginTop: "10px", 
-                            background: "#f5f5f5", 
-                            padding: "20px", 
-                            borderRadius: "4px", 
+
+                        <div
+                          style={{
+                            marginTop: "10px",
+                            background: "#f5f5f5",
+                            padding: "20px",
+                            borderRadius: "4px",
                             border: "2px dashed #ccc",
                             textAlign: "center",
                             color: "#666",
@@ -717,20 +786,20 @@ export default function MonitoringDevicesPage() {
             <div style={{ flex: 1, padding: "10px", overflowY: "auto", background: "#f9f9f9" }}>
               {messages.length > 0
                 ? messages.map((msg, index) => (
-                    <p
-                      key={index}
-                      style={{
-                        padding: "8px",
-                        background: msg.sender === "user" ? "#d1e7ff" : "#e0e0e0",
-                        borderRadius: "5px",
-                        maxWidth: "80%",
-                        color: "black",
-                        alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
-                      }}
-                    >
-                      {msg.text}
-                    </p>
-                  ))
+                  <p
+                    key={index}
+                    style={{
+                      padding: "8px",
+                      background: msg.sender === "user" ? "#d1e7ff" : "#e0e0e0",
+                      borderRadius: "5px",
+                      maxWidth: "80%",
+                      color: "black",
+                      alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+                    }}
+                  >
+                    {msg.text}
+                  </p>
+                ))
                 : <p style={{ color: "gray", textAlign: "center" }}>Ask me anything about your devices!</p>}
             </div>
 
@@ -763,3 +832,4 @@ export default function MonitoringDevicesPage() {
     </main>
   );
 }
+
