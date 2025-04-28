@@ -1,0 +1,45 @@
+esphome:
+  name: temperature
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+ 
+logger:
+  level: INFO 
+
+api:
+  password: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Temperature Fallback Hotspot"
+    password: "AdSl7TH3YaE1"
+
+one_wire:
+  - platform: gpio
+    pin: GPIO4  
+
+sensor:
+  - platform: dallas_temp
+    name: "DS18B20 Temperature"
+    resolution: 12
+    update_interval: 5s
+    on_value:
+      then:  
+        - lambda: |-
+            float fahrenheit = (x * 1.8) + 32.0;
+
+            char fahrenheit_str[10];
+            snprintf(fahrenheit_str, sizeof(fahrenheit_str), "%.2f", fahrenheit);
+            
+            ESP_LOGI("INFO", "{\"temperature_f\": \"%s\"}", fahrenheit_str);
+           
+captive_portal:
+    
